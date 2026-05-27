@@ -1,11 +1,9 @@
 import { MongoClient, Db } from 'mongodb';
 
-const uri = process.env.MONGODB_URI!;
+// ⚠️  Do NOT throw at module-evaluation time — that crashes next build.
+//     Defer the URI check until connectDB() is called at request time.
+const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB || 'toofan';
-
-if (!uri) {
-  throw new Error('Please add your MongoDB URI to .env.local');
-}
 
 interface MongoCache {
   client: MongoClient | null;
@@ -15,12 +13,18 @@ interface MongoCache {
 // In development we reuse the connection across hot-reloads
 const globalWithMongo = global as typeof global & { _mongoCache?: MongoCache };
 
-let cached: MongoCache = globalWithMongo._mongoCache ?? { client: null, db: null };
+const cached: MongoCache = globalWithMongo._mongoCache ?? { client: null, db: null };
 if (!globalWithMongo._mongoCache) {
   globalWithMongo._mongoCache = cached;
 }
 
 export async function connectDB(): Promise<Db> {
+  if (!uri) {
+    throw new Error(
+      'MONGODB_URI is not set. Add it to .env.local (dev) or Vercel Environment Variables (production).'
+    );
+  }
+
   if (cached.client && cached.db) return cached.db;
 
   const client = new MongoClient(uri);
