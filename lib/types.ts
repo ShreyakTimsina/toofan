@@ -21,12 +21,18 @@ export interface OrderItem {
   price: number;
 }
 
+export interface DeliveryCoords {
+  lat: number;
+  lng: number;
+}
+
 export interface Order {
   id: string;
   timestamp: string;
   name: string;
   phone: string;
   address: string;
+  deliveryCoords?: DeliveryCoords;
   remarks: string;
   items: OrderItem[];
   total: number;

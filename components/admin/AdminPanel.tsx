@@ -5,8 +5,9 @@ import Link from 'next/link';
 import type { Product, Order, OrderStatus } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
 import {
-  getProducts, saveProducts, getOrders, updateOrderStatus,
   getSettings, generateId, isReturningCustomer,
+  fetchProducts, fetchOrders, updateOrderStatusAPI,
+  saveProductAPI, deleteProductAPI, reorderProductsAPI,
 } from '@/lib/data';
 
 type Tab = 'dashboard' | 'orders' | 'products';
@@ -26,7 +27,8 @@ export default function AdminPanel() {
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [confirmId, setConfirmId]   = useState<string | null>(null);
   const [dragSrc, setDragSrc]       = useState<number | null>(null);
-  const [theme, setTheme]           = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme]           = useState<'dark' | 'light'>('light');
+  const [loading, setLoading]       = useState(false);
 
   // Product form state
   const [pfName, setPfName]     = useState('');
@@ -43,10 +45,11 @@ export default function AdminPanel() {
     if (typeof window !== 'undefined') {
       const auth = sessionStorage.getItem('toofan_admin_auth');
       if (auth === '1') { setAuthed(true); load(); }
-      const saved = (localStorage.getItem('toofan_theme') as 'dark' | 'light') || 'dark';
+      const saved = (localStorage.getItem('toofan_theme') as 'dark' | 'light') || 'light';
       setTheme(saved);
       document.documentElement.setAttribute('data-theme', saved);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleTheme = () => {
@@ -56,15 +59,16 @@ export default function AdminPanel() {
     localStorage.setItem('toofan_theme', next);
   };
 
-  const load = () => {
-    setOrders(getOrders());
-    setProducts(getProducts().sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
-    calcDashboard();
+  const load = async () => {
+    setLoading(true);
+    const [ords, prods] = await Promise.all([fetchOrders(), fetchProducts()]);
+    setOrders(ords);
+    setProducts(prods.sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
+    calcDashboard(ords, prods);
+    setLoading(false);
   };
 
-  const calcDashboard = () => {
-    const ords = getOrders();
-    const prods = getProducts();
+  const calcDashboard = (ords: Order[], prods: Product[]) => {
     const today = new Date().toDateString();
     const todayO = ords.filter(o => new Date(o.timestamp).toDateString() === today);
     const revenue = ords.filter(o => o.status !== 'cancelled').reduce((s,o) => s+(o.total||0), 0);
@@ -107,9 +111,9 @@ export default function AdminPanel() {
     return matchSearch && matchFilter;
   });
 
-  const changeStatus = (id: string, status: OrderStatus) => {
-    updateOrderStatus(id, status);
-    setOrders(getOrders());
+  const changeStatus = async (id: string, status: OrderStatus) => {
+    await updateOrderStatusAPI(id, status);
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
     addToast(`Status updated to ${status}`);
   };
 
@@ -117,49 +121,62 @@ export default function AdminPanel() {
   const openAdd  = () => { setEditingId(null); setPfName(''); setPfCat('drinks'); setPfPrice(''); setPfDesc(''); setPfImage(''); setModalOpen(true); };
   const openEdit = (p: Product) => { setEditingId(p.id); setPfName(p.name); setPfCat(p.category); setPfPrice(String(p.price)); setPfDesc(p.description); setPfImage(p.image); setModalOpen(true); };
 
-  const saveProd = (e: React.FormEvent) => {
+  const saveProd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const prods = getProducts();
-    if (editingId) {
-      const idx = prods.findIndex(p => p.id === editingId);
-      if (idx !== -1) prods[idx] = { ...prods[idx], name: pfName, category: pfCat, price: parseFloat(pfPrice), description: pfDesc, image: pfImage || '/images/placeholder.png' };
-    } else {
-      const maxOrder = prods.reduce((m,p) => Math.max(m, p.displayOrder||0), 0);
-      prods.push({ id: generateId('P'), name: pfName, category: pfCat, price: parseFloat(pfPrice), description: pfDesc, image: pfImage || '/images/placeholder.png', orderCount: 0, active: true, displayOrder: maxOrder+1 });
+    try {
+      if (editingId) {
+        await saveProductAPI({ id: editingId, name: pfName, category: pfCat, price: parseFloat(pfPrice), description: pfDesc, image: pfImage || '/images/placeholder.png' });
+        setProducts(prev => prev.map(p => p.id === editingId ? { ...p, name: pfName, category: pfCat, price: parseFloat(pfPrice), description: pfDesc, image: pfImage || '/images/placeholder.png' } : p));
+        addToast('Product updated!');
+      } else {
+        const newProd = await saveProductAPI({ name: pfName, category: pfCat, price: parseFloat(pfPrice), description: pfDesc, image: pfImage || '/images/placeholder.png' });
+        setProducts(prev => [...prev, newProd].sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
+        addToast('Product added!');
+      }
+      setModalOpen(false);
+    } catch {
+      addToast('Failed to save product.');
     }
-    saveProducts(prods);
-    setProducts(prods.sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
-    setModalOpen(false);
-    addToast(editingId ? 'Product updated!' : 'Product added!');
   };
 
-  const deleteProd = () => {
+  const deleteProd = async () => {
     if (!confirmId) return;
-    const prods = getProducts().filter(p => p.id !== confirmId);
-    saveProducts(prods);
-    setProducts(prods.sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
-    setConfirmId(null); addToast('Product deleted.');
+    try {
+      await deleteProductAPI(confirmId);
+      setProducts(prev => prev.filter(p => p.id !== confirmId));
+      setConfirmId(null);
+      addToast('Product deleted.');
+    } catch {
+      addToast('Failed to delete product.');
+    }
   };
 
-  const toggleActive = (id: string, val: boolean) => {
-    const prods = getProducts();
-    const idx = prods.findIndex(p => p.id === id);
-    if (idx !== -1) { prods[idx].active = val; saveProducts(prods); setProducts([...prods].sort((a,b)=>(a.displayOrder||99)-(b.displayOrder||99))); }
-    addToast(val ? 'Product visible.' : 'Product hidden.');
+  const toggleActive = async (id: string, val: boolean) => {
+    try {
+      await saveProductAPI({ id, active: val });
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, active: val } : p));
+      addToast(val ? 'Product visible.' : 'Product hidden.');
+    } catch {
+      addToast('Failed to update product.');
+    }
   };
 
   /* ── Drag & Drop ── */
   const onDragStart = (i: number) => setDragSrc(i);
-  const onDrop = (targetIdx: number) => {
+  const onDrop = async (targetIdx: number) => {
     if (dragSrc === null || dragSrc === targetIdx) return;
-    const prods = getProducts().sort((a,b)=>(a.displayOrder||99)-(b.displayOrder||99));
-    const [moved] = prods.splice(dragSrc, 1);
-    prods.splice(targetIdx, 0, moved);
-    prods.forEach((p,i) => { p.displayOrder = i+1; });
-    saveProducts(prods);
-    setProducts([...prods]);
+    const reordered = [...products];
+    const [moved] = reordered.splice(dragSrc, 1);
+    reordered.splice(targetIdx, 0, moved);
+    reordered.forEach((p,i) => { p.displayOrder = i+1; });
+    setProducts([...reordered]);
     setDragSrc(null);
-    addToast('Order saved!');
+    try {
+      await reorderProductsAPI(reordered);
+      addToast('Order saved!');
+    } catch {
+      addToast('Failed to save order.');
+    }
   };
 
   if (!authed) return (
@@ -193,7 +210,7 @@ export default function AdminPanel() {
         <div className="sidebar-label">Menu</div>
         <nav className="sidebar-nav">
           {([['dashboard','Dashboard'], ['orders','Orders'], ['products','Products']] as [Tab,string][]).map(([t,label]) => (
-            <button key={t} className={`nav-item${tab === t ? ' active' : ''}`} onClick={() => { setTab(t); if(t!=='dashboard') load(); else calcDashboard(); }}>
+            <button key={t} className={`nav-item${tab === t ? ' active' : ''}`} onClick={() => { setTab(t); load(); }}>
               {t === 'dashboard' && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>}
               {t === 'orders' && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}
               {t === 'products' && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>}
@@ -237,8 +254,15 @@ export default function AdminPanel() {
         </header>
 
         <div className="admin-content">
+          {loading && (
+            <div style={{textAlign:'center',padding:'60px 0',color:'var(--clr-text-3)'}}>
+              <div style={{fontSize:'32px',marginBottom:'12px',animation:'spin-slow 1s linear infinite',display:'inline-block'}}>🌪</div>
+              <div style={{fontSize:'13px',letterSpacing:'0.06em',textTransform:'uppercase'}}>Loading from MongoDB…</div>
+            </div>
+          )}
+
           {/* ── Dashboard ── */}
-          {tab === 'dashboard' && (
+          {!loading && tab === 'dashboard' && (
             <div>
               <div className="stat-grid">
                 <div className="stat-card"><div className="stat-label">Total Orders</div><div className="stat-value">{stats.total}</div><div className="stat-sub">All time</div></div>
@@ -259,7 +283,7 @@ export default function AdminPanel() {
           )}
 
           {/* ── Orders ── */}
-          {tab === 'orders' && (
+          {!loading && tab === 'orders' && (
             <div className="orders-wrap">
               <div className="orders-header">
                 <h3>All Orders</h3>
@@ -283,7 +307,7 @@ export default function AdminPanel() {
                       <tr><td colSpan={8} style={{textAlign:'center',padding:'40px',color:'var(--clr-text-3)'}}>No orders found.</td></tr>
                     ) : filteredOrders.map(order => {
                       const d = new Date(order.timestamp);
-                      const returning = isReturningCustomer(order.phone, order.id);
+                      const returning = isReturningCustomer(order.phone, orders, order.id);
                       return (
                         <React.Fragment key={order.id}>
                           <tr>
@@ -308,6 +332,12 @@ export default function AdminPanel() {
                               <td colSpan={8} className="order-detail-cell">
                                 {order.items?.map((item,i) => <div key={i} className="order-item-row"><strong>{item.name}</strong><span>×{item.qty}</span><span>Rs.{(item.price*item.qty).toLocaleString()}</span></div>)}
                                 <div style={{marginTop:'10px',fontSize:'12px',color:'var(--clr-text-2)'}}><strong>Address:</strong> {order.address}</div>
+                                {order.deliveryCoords && (
+                                  <div style={{marginTop:'4px',fontSize:'11px',color:'var(--clr-text-3)'}}>
+                                    📍 Coords: {order.deliveryCoords.lat.toFixed(5)}, {order.deliveryCoords.lng.toFixed(5)}{' '}
+                                    <a href={`https://www.google.com/maps?q=${order.deliveryCoords.lat},${order.deliveryCoords.lng}`} target="_blank" rel="noopener noreferrer" style={{color:'var(--clr-accent)'}}>View on Google Maps ↗</a>
+                                  </div>
+                                )}
                                 {order.remarks && <div style={{marginTop:'6px',fontSize:'12px',color:'var(--clr-text-3)',fontStyle:'italic'}}>💬 &quot;{order.remarks}&quot;</div>}
                               </td>
                             </tr>
@@ -322,7 +352,7 @@ export default function AdminPanel() {
           )}
 
           {/* ── Products ── */}
-          {tab === 'products' && (
+          {!loading && tab === 'products' && (
             <div>
               <div className="products-admin-header">
                 <h3>Product Catalogue</h3>
@@ -386,7 +416,7 @@ export default function AdminPanel() {
       <div className={`confirm-dialog${confirmId ? ' open' : ''}`} role="alertdialog" aria-modal="true">
         <div className="confirm-box">
           <h4>Delete Product?</h4>
-          <p>This will permanently remove the product from the catalogue.</p>
+          <p>This will permanently remove the product from the catalogue and MongoDB.</p>
           <div className="confirm-actions">
             <button className="btn btn-danger" style={{flex:1}} onClick={deleteProd}>Yes, Delete</button>
             <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setConfirmId(null)}>Cancel</button>

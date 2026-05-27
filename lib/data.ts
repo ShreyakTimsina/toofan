@@ -1,4 +1,4 @@
-import type { Product, Order, OrderStatus, Settings, Cart } from './types';
+import type { Product, Order, Cart, Settings, SortMode } from './types';
 
 // ─── Seed Data ─────────────────────────────────────────────
 export const SEED_PRODUCTS: Product[] = [
@@ -28,36 +28,9 @@ export const DEFAULT_SETTINGS: Settings = {
   currency: 'Rs.',
 };
 
-const KEYS = { PRODUCTS: 'toofan_products', ORDERS: 'toofan_orders', SETTINGS: 'toofan_settings', CART: 'toofan_cart' } as const;
+const KEYS = { SETTINGS: 'toofan_settings', CART: 'toofan_cart' } as const;
 
-export function getProducts(): Product[] {
-  try {
-    const raw = localStorage.getItem(KEYS.PRODUCTS);
-    if (!raw) { localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(SEED_PRODUCTS)); return SEED_PRODUCTS; }
-    return JSON.parse(raw) as Product[];
-  } catch { return SEED_PRODUCTS; }
-}
-export function saveProducts(products: Product[]): void {
-  localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
-}
-
-export function getOrders(): Order[] {
-  try { const raw = localStorage.getItem(KEYS.ORDERS); return raw ? JSON.parse(raw) as Order[] : []; }
-  catch { return []; }
-}
-export function saveOrder(order: Order): void {
-  const orders = getOrders(); orders.unshift(order);
-  localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders));
-}
-export function updateOrderStatus(orderId: string, status: OrderStatus): void {
-  const orders = getOrders();
-  const idx = orders.findIndex(o => o.id === orderId);
-  if (idx !== -1) { orders[idx].status = status; localStorage.setItem(KEYS.ORDERS, JSON.stringify(orders)); }
-}
-export function isReturningCustomer(phone: string, excludeId?: string): boolean {
-  return getOrders().some(o => o.phone === phone && o.status !== 'cancelled' && o.id !== excludeId);
-}
-
+// ─── Cart (stays client-side) ──────────────────────────────
 export function getCart(): Cart {
   try { const raw = localStorage.getItem(KEYS.CART); return raw ? JSON.parse(raw) as Cart : {}; }
   catch { return {}; }
@@ -65,17 +38,102 @@ export function getCart(): Cart {
 export function saveCart(cart: Cart): void { localStorage.setItem(KEYS.CART, JSON.stringify(cart)); }
 export function clearCart(): void { localStorage.removeItem(KEYS.CART); }
 
+// ─── Settings (client-side) ───────────────────────────────
 export function getSettings(): Settings {
   try { const raw = localStorage.getItem(KEYS.SETTINGS); return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS }; }
   catch { return { ...DEFAULT_SETTINGS }; }
 }
 export function saveSettings(s: Settings): void { localStorage.setItem(KEYS.SETTINGS, JSON.stringify(s)); }
 
+// ─── Legacy localStorage helpers (for admin auth, settings) ─
+export function isReturningCustomer(phone: string, orders: import('./types').Order[], excludeId?: string): boolean {
+  return orders.some(o => o.phone === phone && o.status !== 'cancelled' && o.id !== excludeId);
+}
+
 export function generateId(prefix = 'ORD'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
-export async function notifyAdminSMS(order: Order): Promise<void> {
+// ─── API-backed data functions ─────────────────────────────
+
+export async function fetchProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('Failed to fetch products');
+    const data = await res.json();
+    return data as Product[];
+  } catch {
+    // Fallback to seed data if API unavailable
+    return SEED_PRODUCTS;
+  }
+}
+
+export async function fetchOrders(): Promise<import('./types').Order[]> {
+  try {
+    const res = await fetch('/api/orders');
+    if (!res.ok) throw new Error('Failed to fetch orders');
+    return await res.json();
+  } catch { return []; }
+}
+
+export async function submitOrder(order: import('./types').Order): Promise<void> {
+  const res = await fetch('/api/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(order),
+  });
+  if (!res.ok) throw new Error('Failed to submit order');
+}
+
+export async function updateOrderStatusAPI(orderId: string, status: import('./types').OrderStatus): Promise<void> {
+  const res = await fetch(`/api/orders/${orderId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error('Failed to update order status');
+}
+
+export async function saveProductAPI(product: Partial<Product> & { id?: string }): Promise<Product> {
+  if (product.id) {
+    // Update existing
+    const res = await fetch(`/api/products/${product.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
+    });
+    if (!res.ok) throw new Error('Failed to update product');
+    return res.json();
+  } else {
+    // Create new
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
+    });
+    if (!res.ok) throw new Error('Failed to create product');
+    return res.json();
+  }
+}
+
+export async function deleteProductAPI(id: string): Promise<void> {
+  const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete product');
+}
+
+export async function reorderProductsAPI(products: Product[]): Promise<void> {
+  const res = await fetch('/api/products', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(products),
+  });
+  if (!res.ok) throw new Error('Failed to reorder products');
+}
+
+export async function notifyAdminSMS(order: import('./types').Order): Promise<void> {
   console.info('[Toofan] Order notification:', order);
   // TODO: Wire in your SMS API (Fast2SMS / Sparrow / Twilio)
 }
+
+// ─── Kept for backwards compat (used in some admin auth checks) ──
+export function getProductsSync(): Product[] { return SEED_PRODUCTS; }

@@ -1,18 +1,28 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import type { Product, Cart, SortMode, Category } from '@/lib/types';
+import type { Product, Cart, SortMode, Category, DeliveryCoords } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
 import {
-  getProducts, saveProducts, getCart, saveCart, clearCart,
-  getOrders, saveOrder, notifyAdminSMS, generateId, getSettings,
+  getCart, saveCart, clearCart,
+  fetchProducts, submitOrder, notifyAdminSMS,
+  generateId, getSettings,
 } from '@/lib/data';
 
-/* ══════════════════════════════════════════════════════════
-   STOREFRONT — single client component tree
-   ══════════════════════════════════════════════════════════ */
+// Map picker loaded client-only (Leaflet requires browser APIs)
+const MapAddressPicker = dynamic(
+  () => import('./MapAddressPicker'),
+  { ssr: false, loading: () => (
+    <div style={{height:'280px',background:'var(--clr-bg-3)',borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--clr-text-3)',fontSize:'13px'}}>
+      Loading map…
+    </div>
+  )}
+);
+
 export default function Storefront() {
   const [products, setProducts]         = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [cart, setCart]                 = useState<Cart>({});
   const [category, setCategory]         = useState<Category | 'all'>('all');
   const [sortMode, setSortMode]         = useState<SortMode>('default');
@@ -23,26 +33,33 @@ export default function Storefront() {
   const [lastOrderId, setLastOrderId]   = useState('');
   const [toasts, setToasts]             = useState<string[]>([]);
   const [faqOpen, setFaqOpen]           = useState<number | null>(null);
-  const [theme, setTheme]               = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme]               = useState<'dark' | 'light'>('light');
 
   // Form
   const [name, setName]         = useState('');
   const [phone, setPhone]       = useState('');
   const [address, setAddress]   = useState('');
+  const [deliveryCoords, setDeliveryCoords] = useState<DeliveryCoords | null>(null);
   const [remarks, setRemarks]   = useState('');
   const [errors, setErrors]     = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   // Hydrate
   useEffect(() => {
-    const prods = getProducts().filter(p => p.active !== false);
-    setProducts(prods);
-    setCart(getCart());
-    setSortMode(getSettings().defaultSort);
-    // Restore theme preference
-    const saved = (localStorage.getItem('toofan_theme') as 'dark' | 'light') || 'dark';
+    // Theme
+    const saved = (localStorage.getItem('toofan_theme') as 'dark' | 'light') || 'light';
     setTheme(saved);
     document.documentElement.setAttribute('data-theme', saved);
+
+    // Cart
+    setCart(getCart());
+    setSortMode(getSettings().defaultSort);
+
+    // Products from MongoDB
+    fetchProducts().then(prods => {
+      setProducts(prods.filter(p => p.active !== false));
+      setProductsLoading(false);
+    });
   }, []);
 
   const toggleTheme = () => {
@@ -59,6 +76,13 @@ export default function Storefront() {
     setToasts(t => [...t, msg]);
     setTimeout(() => setToasts(t => t.slice(1)), 3000);
   };
+
+  /* ── Map callback ── */
+  const handleMapChange = useCallback((coords: DeliveryCoords | null, addr: string) => {
+    setDeliveryCoords(coords);
+    setAddress(addr);
+    if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
+  }, [errors.address]);
 
   /* ── Filtering & Sorting ── */
   const filtered = (() => {
@@ -87,10 +111,9 @@ export default function Storefront() {
     });
   }, []);
 
-  const allProds = getProducts();
   const totalQty = Object.values(cart).reduce((s,q) => s+q, 0);
   const totalAmt = Object.entries(cart).reduce((s,[id,q]) => {
-    const p = allProds.find(x => x.id === id);
+    const p = products.find(x => x.id === id);
     return s + (p ? p.price*q : 0);
   }, 0);
   const currency = getSettings().currency;
@@ -102,47 +125,56 @@ export default function Storefront() {
     if (!name.trim())                          errs.name    = 'Full name is required.';
     if (!phone.trim())                         errs.phone   = 'Phone number is required.';
     else if (!/^[0-9]{10}$/.test(phone))       errs.phone   = 'Enter a valid 10-digit number.';
-    if (!address.trim())                       errs.address = 'Delivery address is required.';
+    if (!address.trim())                       errs.address = 'Please pin or type your delivery address.';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     setSubmitting(true);
-    const items = Object.entries(cart).map(([id,qty]) => {
-      const p = allProds.find(x => x.id === id);
-      return { productId: id, name: p?.name || id, qty, price: p?.price || 0 };
-    });
-    const order = {
-      id: generateId('ORD'), timestamp: new Date().toISOString(),
-      name: name.trim(), phone, address: address.trim(), remarks: remarks.trim(),
-      items, total: totalAmt, status: 'pending' as const,
-    };
-    saveOrder(order);
-
-    // Update order counts
-    const saved = getProducts();
-    items.forEach(item => {
-      const idx = saved.findIndex(p => p.id === item.productId);
-      if (idx !== -1) saved[idx].orderCount = (saved[idx].orderCount || 0) + item.qty;
-    });
-    saveProducts(saved);
-    await notifyAdminSMS(order);
-
-    clearCart();
-    setCart({});
-    setLastOrderId(order.id);
-    setOrderDone(true);
+    try {
+      const items = Object.entries(cart).map(([id,qty]) => {
+        const p = products.find(x => x.id === id);
+        return { productId: id, name: p?.name || id, qty, price: p?.price || 0 };
+      });
+      const order = {
+        id: generateId('ORD'), timestamp: new Date().toISOString(),
+        name: name.trim(), phone, address: address.trim(),
+        ...(deliveryCoords ? { deliveryCoords } : {}),
+        remarks: remarks.trim(),
+        items, total: totalAmt, status: 'pending' as const,
+      };
+      await submitOrder(order);
+      await notifyAdminSMS(order);
+      clearCart();
+      setCart({});
+      setLastOrderId(order.id);
+      setOrderDone(true);
+    } catch {
+      addToast('Failed to place order. Please try again.');
+    }
     setSubmitting(false);
   };
 
-  const openModal  = () => { setCartOpen(false); setModalOpen(true); setOrderDone(false); setErrors({}); };
+  const openModal  = () => { setCartOpen(false); setModalOpen(true); setOrderDone(false); setErrors({}); setAddress(''); setDeliveryCoords(null); };
   const closeModal = () => { setModalOpen(false); };
 
   const faqs = [
-    { q: 'How do I place an order?', a: 'Browse the product catalogue, add items using the + button on each card, then click Place Order. Fill in your name, phone, and address — done!' },
-    { q: 'Do I need to create an account?', a: "No account required. Just provide your name, phone, and address at checkout." },
+    { q: 'How do I place an order?', a: 'Browse the product catalogue, add items using the + button on each card, then click Place Order. Fill in your name, phone, and pin your delivery location on the map — done!' },
+    { q: 'Do I need to create an account?', a: "No account required. Just provide your name, phone, and delivery location at checkout." },
     { q: 'How do I pay?', a: 'Payment is through cash on delivery or manual bank transfer. First-time customers may be asked for a small advance.' },
     { q: 'What drinks do you carry?', a: 'Carlsberg, Tuborg Strong, Gorkha Beer, Old Durbar Whisky, 8848 Vodka, Coca-Cola, Sprite, Red Bull and more!' },
     { q: 'Do you sell cigarettes and snacks too?', a: 'Yes! Surya Classic, Shikhar Filter, Marlboro Red, masala peanuts, Wai Wai noodles, Kurkure, and chips combos.' },
   ];
+
+  // Skeleton cards while loading
+  const skeletonCards = Array.from({ length: 6 }, (_, i) => (
+    <div key={i} className="product-card" style={{ minHeight: '280px' }}>
+      <div className="skeleton" style={{ height: '190px', borderRadius: '0' }} />
+      <div className="card-body" style={{ gap: '8px' }}>
+        <div className="skeleton" style={{ height: '20px', width: '70%' }} />
+        <div className="skeleton" style={{ height: '14px', width: '90%' }} />
+        <div className="skeleton" style={{ height: '14px', width: '60%' }} />
+      </div>
+    </div>
+  ));
 
   return (
     <>
@@ -159,7 +191,6 @@ export default function Storefront() {
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           >
-            {/* Sun icon — visible in dark mode */}
             <svg className="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <circle cx="12" cy="12" r="5"/>
               <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
@@ -167,7 +198,6 @@ export default function Storefront() {
               <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
               <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
             </svg>
-            {/* Moon icon — visible in light mode */}
             <svg className="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
             </svg>
@@ -229,7 +259,7 @@ export default function Storefront() {
         <section className="section-main" id="products" aria-labelledby="products-heading">
           <h2 id="products-heading" className="sr-only">Product Listing</h2>
           <div className="products-grid" role="list" aria-label="Product catalogue">
-            {filtered.length === 0 ? (
+            {productsLoading ? skeletonCards : filtered.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">🔍</div><p>No products found.</p></div>
             ) : filtered.map(product => {
               const qty = cart[product.id] || 0;
@@ -271,7 +301,7 @@ export default function Storefront() {
           <div className="features-grid" role="list">
             {[
               { icon: '⚡', cls: '1', title: 'Lightning-Fast Ordering', desc: 'Add items directly from the listing — just tap + and you\'re done. No digging through product pages.' },
-              { icon: '🔐', cls: '2', title: 'No Account Required', desc: 'No signups or passwords. Just your name, number, and address at checkout — and your order is on its way.' },
+              { icon: '📍', cls: '2', title: 'Smart Map Delivery', desc: 'Pin your exact delivery location on the map, use GPS, or type your address. We\'ll find you wherever you are.' },
               { icon: '🛒', cls: '3', title: 'Wide Selection', desc: 'Carlsberg, Gorkha Beer, Old Durbar Whisky, Surya cigarettes, masala peanuts, Wai Wai and more — all in one place.' },
               { icon: '📞', cls: '4', title: 'Direct & Personal', desc: 'Every order is handled personally. We confirm over the phone and ensure everything reaches you as requested.' },
             ].map(f => (
@@ -284,7 +314,7 @@ export default function Storefront() {
           </div>
         </section>
 
-        {/* ── FAQ (SEO content) ── */}
+        {/* ── FAQ ── */}
         <section className="faq-section" aria-labelledby="faq-heading">
           <div className="section-header">
             <span className="section-eyebrow">FAQ</span>
@@ -339,7 +369,7 @@ export default function Storefront() {
         ) : (
           <div className="cart-items" role="list">
             {Object.entries(cart).map(([id, qty]) => {
-              const p = allProds.find(x => x.id === id);
+              const p = products.find(x => x.id === id);
               if (!p) return null;
               return (
                 <div key={id} className="cart-item" role="listitem">
@@ -379,17 +409,19 @@ export default function Storefront() {
                 <h2 className="modal-title" id="order-modal-title">Complete Your Order</h2>
                 <button className="cart-close" onClick={closeModal} aria-label="Close">✕</button>
               </div>
-              <p className="modal-sub">Fill in your details and we&apos;ll take care of the rest.</p>
+              <p className="modal-sub">Fill in your details and pin your delivery location on the map.</p>
+
               {/* Order summary */}
               <div className="order-summary">
                 <div className="summary-title">Order Summary</div>
                 {Object.entries(cart).map(([id,qty]) => {
-                  const p = allProds.find(x => x.id === id);
+                  const p = products.find(x => x.id === id);
                   if (!p) return null;
                   return <div key={id} className="summary-item"><span className="summary-name">{p.name} ×{qty}</span><span className="summary-price">{currency}{(p.price*qty).toLocaleString()}</span></div>;
                 })}
                 <div className="summary-total"><span>Total</span><span className="summary-total-amt">{currency}{totalAmt.toLocaleString()}</span></div>
               </div>
+
               {/* Form */}
               <form onSubmit={handleSubmit} noValidate>
                 <div className="form-group">
@@ -406,11 +438,21 @@ export default function Storefront() {
                   <span className="otp-note">OTP verification coming soon</span>
                   <span className="form-error" id="err-phone" role="alert">{errors.phone}</span>
                 </div>
+
+                {/* ── MAP ADDRESS PICKER ── */}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="input-address">Delivery Address <span className="form-req">*</span></label>
-                  <textarea id="input-address" className={`form-textarea${errors.address ? ' has-error' : ''}`} placeholder="e.g. Thamel, Kathmandu — near the pharmacy" value={address} onChange={e => setAddress(e.target.value)} rows={3} aria-describedby="err-address"/>
-                  <span className="form-error" id="err-address" role="alert">{errors.address}</span>
+                  <label className="form-label">
+                    Delivery Location <span className="form-req">*</span>
+                  </label>
+                  <MapAddressPicker
+                    onChange={handleMapChange}
+                    hasError={!!errors.address}
+                  />
+                  {errors.address && (
+                    <span className="form-error" role="alert">{errors.address}</span>
+                  )}
                 </div>
+
                 <div className="form-group">
                   <label className="form-label" htmlFor="input-remarks">Remarks <span style={{color:'var(--clr-text-3)',fontWeight:400}}>(optional)</span></label>
                   <input id="input-remarks" type="text" className="form-input" placeholder="e.g. Call before arriving" value={remarks} onChange={e => setRemarks(e.target.value)}/>

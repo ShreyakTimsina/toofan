@@ -1,0 +1,177 @@
+/* ── Map Address Picker ── */
+.map-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--clr-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--clr-surface);
+}
+
+/* Map container */
+.map-picker__map {
+  height: 280px;
+  width: 100%;
+  position: relative;
+  z-index: 0;
+}
+
+/* Leaflet override — ensure map stays in modal */
+.map-picker__map .leaflet-container {
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-body);
+  background: var(--clr-bg-3);
+}
+
+/* Bottom controls */
+.map-picker__controls {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--clr-surface);
+  border-top: 1px solid var(--clr-border);
+}
+
+.map-picker__btn-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.map-picker__locate-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--clr-accent-dim);
+  border: 1px solid var(--clr-accent);
+  color: var(--clr-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.map-picker__locate-btn:hover {
+  background: var(--clr-accent);
+  color: #fff;
+}
+.map-picker__locate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-picker__pin-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--clr-surface-2);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text-2);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.map-picker__pin-btn:hover {
+  border-color: var(--clr-teal);
+  color: var(--clr-teal);
+}
+.map-picker__pin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-picker__address-input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text);
+  font-size: 13px;
+  font-family: var(--font-body);
+  transition: all var(--t-fast);
+  min-width: 0;
+}
+.map-picker__address-input:focus {
+  outline: none;
+  border-color: rgba(34,197,94,0.5);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.08);
+}
+.map-picker__address-input.has-error {
+  border-color: rgba(244,63,94,0.6);
+}
+.map-picker__address-input::placeholder {
+  color: var(--clr-text-3);
+}
+
+/* Legend */
+.map-picker__legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.map-picker__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--clr-text-3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.map-picker__legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.map-picker__legend-dot--gps {
+  background: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.3);
+}
+.map-picker__legend-dot--delivery {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.3);
+}
+
+/* Status text */
+.map-picker__status {
+  font-size: 11px;
+  color: var(--clr-text-3);
+  letter-spacing: 0.03em;
+  min-height: 16px;
+  text-align: right;
+}
+.map-picker__status--loading {
+  color: var(--clr-teal);
+}
+.map-picker__status--error {
+  color: var(--clr-red);
+}
+
+/* Pulsing dot for GPS location */
+@keyframes pulse-ring {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.gps-pulse-icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
