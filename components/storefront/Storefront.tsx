@@ -204,11 +204,6 @@ export default function Storefront() {
           <span>Toof<span className="logo-accent">an</span></span>
         </a>
         <nav className="header-nav" aria-label="Primary navigation" style={{display:'flex',alignItems:'center',gap:'10px'}}>
-          {deferredPrompt && (
-            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={handleInstallClick}>
-              ↓ Install App
-            </button>
-          )}
           <button
             className="theme-toggle"
             onClick={toggleTheme}
@@ -491,7 +486,6 @@ export default function Storefront() {
               <div className="success-icon" aria-hidden="true">✓</div>
               <h3>Order Placed!</h3>
               <p>Your order has been received. We&apos;ll contact you shortly on your phone to confirm delivery details.</p>
-              <div className="order-id-chip">Order ID: {lastOrderId}</div>
               <br/><br/>
               <button className="btn-primary" style={{margin:'0 auto'}} onClick={() => { closeModal(); }}>Browse More →</button>
             </div>
@@ -533,7 +527,7 @@ export default function Storefront() {
         </div>
       </div>
       
-      <FloatingContact />
+      <FloatingContact deferredPrompt={deferredPrompt} onInstall={handleInstallClick} />
     </>
   );
 }

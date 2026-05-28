@@ -44,6 +44,7 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
   const gpsMarkerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deliveryMarkerRef = useRef<any>(null);
+  const autoLocateTriggered = useRef(false);
 
   const [addressText, setAddressText] = useState('');
   const [status, setStatus] = useState('');
@@ -51,6 +52,7 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
   const [locating, setLocating] = useState(false);
   const [pinning, setPinning] = useState(false);
   const [deliveryCoords, setDeliveryCoordsState] = useState<LatLng | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const updateDelivery = useCallback(async (latlng: LatLng, map: unknown) => {
     setDeliveryCoordsState(latlng);
@@ -125,6 +127,8 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
       map.on('click', async (e: { latlng: { lat: number; lng: number } }) => {
         await updateDelivery({ lat: e.latlng.lat, lng: e.latlng.lng }, map);
       });
+
+      setMapReady(true);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -198,6 +202,16 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, [updateDelivery]);
+
+  // Auto-locate once map is ready
+  useEffect(() => {
+    if (mapReady && !autoLocateTriggered.current) {
+      autoLocateTriggered.current = true;
+      handleLocate();
+    }
+  }, [mapReady, handleLocate]);
+
+
 
   // "Pin on Map" — geocode typed address
   const handlePinAddress = useCallback(async () => {
