@@ -13,7 +13,7 @@ import {
 } from '@/lib/data';
 import AnalyticsTab from './AnalyticsTab';
 
-type Tab = 'dashboard' | 'analytics' | 'orders' | 'deleted-orders' | 'products' | 'users';
+type Tab = 'dashboard' | 'analytics' | 'orders' | 'settings';
 
 export default function AdminPanel() {
   const [user, setUser]             = useState<AdminUser | null>(null);
@@ -23,6 +23,7 @@ export default function AdminPanel() {
   const [authError, setAuthError]   = useState('');
   
   const [tab, setTab]               = useState<Tab>('orders');
+  const [settingsTab, setSettingsTab] = useState<'products' | 'users' | 'deleted-orders'>('products');
   const [orders, setOrders]         = useState<Order[]>([]);
   const [products, setProducts]     = useState<Product[]>([]);
   const [users, setUsers]           = useState<AdminUser[]>([]);
@@ -426,13 +427,11 @@ export default function AdminPanel() {
   const pendingCount = activeOrders.filter(o => o.status === 'pending').length;
 
   /* ── Tabs configuration ── */
-  const TABS: { id: Tab, label: string, roles: AdminRole[] }[] = [
-    { id: 'dashboard', label: 'Today (Dashboard)', roles: ['owner'] },
-    { id: 'analytics', label: 'Analytics & Reports', roles: ['owner'] },
-    { id: 'orders', label: 'Orders', roles: ['owner', 'manager', 'rider'] },
-    { id: 'deleted-orders', label: 'Deleted Orders', roles: ['owner'] },
-    { id: 'products', label: 'Products', roles: ['owner', 'manager'] },
-    { id: 'users', label: 'Staff Users', roles: ['owner'] },
+  const TABS: { id: Tab, label: string, icon: string, roles: AdminRole[] }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['owner'] },
+    { id: 'analytics', label: 'Analytics', icon: '📈', roles: ['owner'] },
+    { id: 'orders', label: 'Orders', icon: '🛒', roles: ['owner', 'manager', 'rider'] },
+    { id: 'settings', label: 'Settings', icon: '⚙️', roles: ['owner', 'manager'] },
   ];
   const allowedTabs = TABS.filter(t => t.roles.includes(user.role));
 
@@ -448,9 +447,10 @@ export default function AdminPanel() {
           {user.name} ({user.role})
         </div>
         <nav className="sidebar-nav">
-          {allowedTabs.map(({id, label}) => (
+          {allowedTabs.map(({id, label, icon}) => (
             <button key={id} className={`nav-item${tab === id ? ' active' : ''}`} onClick={() => { setTab(id); load(user.role); }}>
-              {label}
+              <span className="nav-icon">{icon}</span>
+              <span className="nav-label">{label}</span>
               {id === 'orders' && pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
             </button>
           ))}
@@ -600,71 +600,82 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {/* ── Deleted Orders (Owner only) ── */}
-          {!loading && tab === 'deleted-orders' && user.role === 'owner' && (
-            <div className="orders-wrap">
-              <div className="orders-header"><h3>Deleted Orders</h3></div>
-              <div className="table-wrap">
-                <table>
-                  <tbody>
-                    {filteredDeletedOrders.map(o => (
-                      <tr key={o.id}>
-                        <td>{o.name}</td>
-                        <td><button onClick={()=>restoreOrder(o.id)}>Restore</button></td>
-                        <td><button onClick={()=>setConfirmOrderHardDelete(o.id)}>Permanently Delete</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ── Products (Owner/Manager) ── */}
-          {!loading && tab === 'products' && ['owner', 'manager'].includes(user.role) && (
+          {/* ── Settings (Owner/Manager) ── */}
+          {!loading && tab === 'settings' && ['owner', 'manager'].includes(user.role) && (
             <div>
-              <div className="products-admin-header">
-                <h3>Product Catalogue</h3>
-                <button className="btn btn-accent" onClick={openAdd}>+ Add Product</button>
+              <div className="settings-nav" style={{display:'flex',gap:'10px',marginBottom:'20px',overflowX:'auto',paddingBottom:'5px'}}>
+                <button className={`btn ${settingsTab === 'products' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('products')}>Products</button>
+                {user.role === 'owner' && <button className={`btn ${settingsTab === 'users' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('users')}>Staff Users</button>}
+                {user.role === 'owner' && <button className={`btn ${settingsTab === 'deleted-orders' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('deleted-orders')}>Deleted Orders</button>}
               </div>
-              <div>
-                {products.map((p, idx) => (
-                  <div key={p.id} className="product-admin-row" draggable onDragStart={()=>onDragStart(idx)} onDragOver={e=>e.preventDefault()} onDrop={()=>onDrop(idx)} onDragEnd={()=>setDragSrc(null)}>
-                    <span className="drag-handle">⠿</span>
-                    <div style={{flex:1}}>{p.name} — Rs.{p.price}</div>
-                    <label className="toggle-switch">
-                      <input type="checkbox" checked={p.active !== false} onChange={e=>toggleActive(p.id,e.target.checked)}/>
-                      <span className="toggle-slider"/>
-                    </label>
-                    <button className="icon-btn edit" onClick={()=>openEdit(p)}>✏️</button>
-                    {user.role === 'owner' && <button className="icon-btn delete" onClick={()=>setConfirmId(p.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
+
+              {/* ── Products Sub-tab ── */}
+              {settingsTab === 'products' && (
+                <div>
+                  <div className="products-admin-header">
+                    <h3>Product Catalogue</h3>
+                    <button className="btn btn-accent" onClick={openAdd}>+ Add Product</button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Users (Owner only) ── */}
-          {!loading && tab === 'users' && user.role === 'owner' && (
-            <div>
-              <div className="products-admin-header">
-                <h3>Staff Users</h3>
-                <button className="btn btn-accent" onClick={openAddUser}>+ Add User</button>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
-                  <tbody>
-                    {users.map(u => (
-                      <tr key={u.id}>
-                        <td>{u.username}</td><td>{u.name}</td><td>{u.role}</td>
-                        <td>{new Date(u.createdAt).toLocaleDateString()}</td>
-                        <td>{u.username !== 'admin' && <button className="icon-btn delete" onClick={()=>setConfirmUserId(u.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}</td>
-                      </tr>
+                  <div>
+                    {products.map((p, idx) => (
+                      <div key={p.id} className="product-admin-row" draggable onDragStart={()=>onDragStart(idx)} onDragOver={e=>e.preventDefault()} onDrop={()=>onDrop(idx)} onDragEnd={()=>setDragSrc(null)}>
+                        <span className="drag-handle">⠿</span>
+                        <div style={{flex:1}}>{p.name} — Rs.{p.price}</div>
+                        <label className="toggle-switch">
+                          <input type="checkbox" checked={p.active !== false} onChange={e=>toggleActive(p.id,e.target.checked)}/>
+                          <span className="toggle-slider"/>
+                        </label>
+                        <button className="icon-btn edit" onClick={()=>openEdit(p)}>✏️</button>
+                        {user.role === 'owner' && <button className="icon-btn delete" onClick={()=>setConfirmId(p.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Users Sub-tab ── */}
+              {settingsTab === 'users' && user.role === 'owner' && (
+                <div>
+                  <div className="products-admin-header">
+                    <h3>Staff Users</h3>
+                    <button className="btn btn-accent" onClick={openAddUser}>+ Add User</button>
+                  </div>
+                  <div className="table-wrap">
+                    <table>
+                      <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+                      <tbody>
+                        {users.map(u => (
+                          <tr key={u.id}>
+                            <td>{u.username}</td><td>{u.name}</td><td>{u.role}</td>
+                            <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+                            <td>{u.username !== 'admin' && <button className="icon-btn delete" onClick={()=>setConfirmUserId(u.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Deleted Orders Sub-tab ── */}
+              {settingsTab === 'deleted-orders' && user.role === 'owner' && (
+                <div className="orders-wrap">
+                  <div className="orders-header"><h3>Deleted Orders</h3></div>
+                  <div className="table-wrap">
+                    <table>
+                      <tbody>
+                        {filteredDeletedOrders.map(o => (
+                          <tr key={o.id}>
+                            <td>{o.name}</td>
+                            <td><button onClick={()=>restoreOrder(o.id)}>Restore</button></td>
+                            <td><button onClick={()=>setConfirmOrderHardDelete(o.id)}>Permanently Delete</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
