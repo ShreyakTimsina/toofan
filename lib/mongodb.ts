@@ -27,9 +27,12 @@ export async function connectDB(): Promise<Db> {
   if (cached.conn) return cached.conn;
 
   const client = new MongoClient(uri, {
-    maxPoolSize: 10,
+    maxPoolSize: 1, // Fix: prevent idle sockets from being silently dropped by Atlas
+    minPoolSize: 0,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
+    maxIdleTimeMS: 10000,
+    family: 4, // Force IPv4 to prevent Node DNS resolution bugs
   });
 
   cached.conn = client.connect()
