@@ -239,15 +239,15 @@ export default function Storefront() {
       <main id="main-content">
         {/* ── HERO ── */}
         <section className="hero" aria-labelledby="hero-heading">
-          <div className="hero-eyebrow"><span aria-hidden="true">🌪</span> Nepal&apos;s favourite drinks spot</div>
+          <div className="hero-eyebrow"><span aria-hidden="true">🌪</span> Toofan Alcohol Delivery</div>
           <h1 id="hero-heading">Your <span className="accent">Favourite</span><br/>Drinks &amp; More</h1>
-          <p className="hero-sub">Premium beers, whiskies, cigarettes, and munchies — all in one place. Browse, pick what you love, and get it delivered.</p>
+          <p className="hero-sub">Free online alcohol delivery at MRP rates. Premium beers, whiskies, cigarettes, and munchies — all in one place. Browse, pick what you love, and get it delivered fast.</p>
           <div className="hero-stats" aria-label="Toofan by the numbers">
-            <div className="hero-stat"><span className="stat-num">15+</span><span className="stat-lbl">Products</span></div>
+            <div className="hero-stat"><span className="stat-num">Free</span><span className="stat-lbl">Delivery</span></div>
             <div className="hero-divider" aria-hidden="true"/>
-            <div className="hero-stat"><span className="stat-num">3</span><span className="stat-lbl">Categories</span></div>
+            <div className="hero-stat"><span className="stat-num">MRP</span><span className="stat-lbl">Rates</span></div>
             <div className="hero-divider" aria-hidden="true"/>
-            <div className="hero-stat"><span className="stat-num">Fast</span><span className="stat-lbl">Delivery</span></div>
+            <div className="hero-stat"><span className="stat-num">Fast</span><span className="stat-lbl">Service</span></div>
             <div className="hero-divider" aria-hidden="true"/>
             <div className="hero-stat"><span className="stat-num">No</span><span className="stat-lbl">Account Needed</span></div>
           </div>

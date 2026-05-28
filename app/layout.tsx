@@ -7,15 +7,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Toofan',
-    default: 'Toofan — Order Drinks, Cigarettes & Snacks Online | Nepal',
+    template: '%s | Toofan Alcohol',
+    default: 'Toofan — Free Online Alcohol Delivery in Nepal',
   },
   description:
-    "Toofan is Nepal's go-to spot for ordering premium drinks, cigarettes, and snacks online. Browse Carlsberg, Gorkha Beer, Old Durbar Whisky, masala peanuts and more. Quick delivery, easy ordering — no account needed.",
+    "Free online alcohol delivery in Nepal at MRP rates. Toofan Alcohol is your go-to spot for ordering premium drinks, liquor, beer, cigarettes, and snacks online. Fast delivery, no account needed.",
   keywords: [
-    'buy drinks online Nepal', 'order beer Nepal', 'Carlsberg Nepal',
-    'Gorkha beer delivery', 'cigarettes online Nepal', 'snacks delivery Kathmandu',
-    'Toofan drinks', 'drinks delivery Nepal', 'Old Durbar whisky', 'Tuborg Nepal',
+    'free online alcohol delivery', 'toofan alcohol', 'buy alcohol online Nepal',
+    'liquor delivery Kathmandu', 'order beer Nepal', 'cigarettes online Nepal',
+    'drinks delivery Nepal', 'Toofan delivery', 'MRP rate alcohol Nepal',
   ],
   authors: [{ name: 'Toofan' }],
   creator: 'Toofan',
@@ -24,16 +24,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: 'https://toofan.com.np/',
-    siteName: 'Toofan',
-    title: 'Toofan — Order Drinks, Cigarettes & Snacks Online | Nepal',
-    description: 'Browse and order premium drinks, cigarettes, and snacks online. Delivered to your door in Nepal.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Toofan — Drinks & Snacks Delivery Nepal' }],
+    siteName: 'Toofan Alcohol',
+    title: 'Toofan — Free Online Alcohol Delivery',
+    description: 'Free online alcohol delivery in Nepal at MRP rates. Order premium drinks, cigarettes, and snacks directly to your door.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Toofan — Free Online Alcohol Delivery' }],
     locale: 'en_NP',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Toofan — Order Drinks, Cigarettes & Snacks Online',
-    description: "Nepal's favourite drinks & snacks delivery. No account needed.",
+    title: 'Toofan — Free Online Alcohol Delivery',
+    description: "Free online alcohol delivery in Nepal at MRP rates. Fast, reliable, no account needed.",
     images: ['/og-image.png'],
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' } },
@@ -60,8 +60,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'Store',
-          name: 'Toofan',
-          description: 'Online store for drinks, cigarettes, and snacks delivery in Nepal.',
+          name: 'Toofan Alcohol',
+          description: 'Free online alcohol delivery in Nepal at MRP rates. Buy drinks, liquor, cigarettes, and snacks online.',
           url: 'https://toofan.com.np',
           logo: 'https://toofan.com.np/images/logo.png',
           image: 'https://toofan.com.np/og-image.png',
