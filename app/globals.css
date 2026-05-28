@@ -1442,6 +1442,7 @@ tbody tr:hover { background: rgba(34,197,94,0.03); }
       "nav nav";
     border-right: none; border-bottom: 1px solid var(--clr-border); 
     gap: 8px;
+    height: auto; min-height: auto; position: static;
   }
   .admin-sidebar-logo { grid-area: logo; margin-bottom: 0; }
   .admin-sidebar > div:nth-child(2) { grid-area: user; margin-top: 0 !important; }
