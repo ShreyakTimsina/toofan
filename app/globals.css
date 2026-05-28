@@ -1398,3 +1398,56 @@ tbody tr:hover { background: rgba(34,197,94,0.03); }
   animation: shimmer 1.5s infinite;
   border-radius: 8px;
 }
+
+/* ── Mobile Responsiveness Tweaks ── */
+@media (max-width: 768px) {
+  /* Storefront Tweaks */
+  .hero { padding: 40px 24px 30px; }
+  .hero-eyebrow { margin-bottom: 16px; font-size: 9px; }
+  .hero h1 { font-size: 48px; margin-bottom: 16px; }
+  .hero-sub { font-size: 13px; margin-bottom: 24px; }
+  
+  .toolbar {
+    padding: 12px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 
+      "search search"
+      "filters sort";
+    gap: 12px;
+  }
+  .search-wrap { grid-area: search; max-width: 100%; }
+  .filter-chips { grid-area: filters; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .sort-select { grid-area: sort; }
+  .result-count { display: none; }
+  
+  .chip-text { display: none; }
+  .chip { padding: 6px 12px; }
+  
+  .section-main { padding: 24px; }
+  .products-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .card-img-wrap { height: 140px; }
+  .card-name { font-size: 16px; }
+  .card-price { font-size: 20px; }
+  
+  /* Admin Panel Tweaks */
+  .admin-shell { flex-direction: column; }
+  .admin-sidebar { 
+    width: 100%; padding: 16px; display: flex; flex-direction: row; 
+    flex-wrap: wrap; align-items: center; justify-content: space-between; 
+    border-right: none; border-bottom: 1px solid var(--clr-border); 
+  }
+  .admin-sidebar-logo { margin-bottom: 0; }
+  .sidebar-label { display: none; }
+  .sidebar-nav { flex-direction: row; width: 100%; overflow-x: auto; gap: 8px; margin-top: 12px; }
+  .nav-item { padding: 8px 12px; white-space: nowrap; }
+  .admin-sidebar-footer { margin-top: 12px; padding-top: 0; border-top: none; }
+  
+  .admin-content { padding: 16px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .orders-header { flex-direction: column; align-items: stretch; gap: 10px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 700px; }
+  .product-admin-row { flex-wrap: wrap; gap: 10px; }
+}

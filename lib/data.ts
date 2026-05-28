@@ -94,6 +94,20 @@ export async function updateOrderStatusAPI(orderId: string, status: import('./ty
   if (!res.ok) throw new Error('Failed to update order status');
 }
 
+export async function softDeleteOrderAPI(orderId: string, isDeleted: boolean): Promise<void> {
+  const res = await fetch(`/api/orders/${orderId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isDeleted }),
+  });
+  if (!res.ok) throw new Error('Failed to soft delete order');
+}
+
+export async function permanentlyDeleteOrderAPI(orderId: string): Promise<void> {
+  const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to permanently delete order');
+}
+
 export async function saveProductAPI(product: Partial<Product> & { id?: string }): Promise<Product> {
   if (product.id) {
     // Update existing
@@ -119,6 +133,49 @@ export async function saveProductAPI(product: Partial<Product> & { id?: string }
 export async function deleteProductAPI(id: string): Promise<void> {
   const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete product');
+}
+
+export async function sendOtpAPI(username: string): Promise<void> {
+  const res = await fetch('/api/auth/send-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username })
+  });
+  if (!res.ok) throw new Error('User not found');
+}
+
+export async function verifyOtpAPI(username: string, otp: string): Promise<import('./types').AdminUser> {
+  const res = await fetch('/api/auth/verify-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, otp })
+  });
+  if (!res.ok) throw new Error('Invalid OTP');
+  const data = await res.json();
+  return data.user;
+}
+
+export async function fetchUsersAPI(): Promise<import('./types').AdminUser[]> {
+  const res = await fetch('/api/users', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  const data = await res.json();
+  return data.users || [];
+}
+
+export async function saveUserAPI(user: Partial<import('./types').AdminUser>): Promise<import('./types').AdminUser> {
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(user)
+  });
+  if (!res.ok) throw new Error('Failed to save user');
+  const data = await res.json();
+  return data.user;
+}
+
+export async function deleteUserAPI(id: string): Promise<void> {
+  const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete user');
 }
 
 export async function reorderProductsAPI(products: Product[]): Promise<void> {

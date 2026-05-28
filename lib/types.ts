@@ -37,9 +37,23 @@ export interface Order {
   items: OrderItem[];
   total: number;
   status: OrderStatus;
+  isDeleted?: boolean;
 }
 
 export type Cart = Record<string, number>; // productId → quantity
+
+
+
+export type AdminRole = 'owner' | 'manager' | 'rider';
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  password?: string; // Hashed or plain (since it's a simple app, we can do plain or a simple hash)
+  role: AdminRole;
+  name: string;
+  createdAt: string;
+}
 
 export interface Settings {
   adminPassword: string;

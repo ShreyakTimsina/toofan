@@ -9,6 +9,7 @@ import {
   fetchProducts, submitOrder, notifyAdminSMS,
   generateId, getSettings,
 } from '@/lib/data';
+import FloatingContact from './FloatingContact';
 
 // Map picker loaded client-only (Leaflet requires browser APIs)
 const MapAddressPicker = dynamic(
@@ -31,6 +32,7 @@ export default function Storefront() {
   const [modalOpen, setModalOpen]       = useState(false);
   const [orderDone, setOrderDone]       = useState(false);
   const [lastOrderId, setLastOrderId]   = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [toasts, setToasts]             = useState<string[]>([]);
   const [faqOpen, setFaqOpen]           = useState<number | null>(null);
   const [theme, setTheme]               = useState<'dark' | 'light'>('light');
@@ -60,7 +62,20 @@ export default function Storefront() {
       setProducts(prods.filter(p => p.active !== false));
       setProductsLoading(false);
     });
+
+    // PWA Install
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
+  };
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -185,10 +200,15 @@ export default function Storefront() {
           <span>Toof<span className="logo-accent">an</span></span>
         </a>
         <nav className="header-nav" aria-label="Primary navigation" style={{display:'flex',alignItems:'center',gap:'10px'}}>
+          {deferredPrompt && (
+            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '11px' }} onClick={handleInstallClick}>
+              ↓ Install App
+            </button>
+          )}
           <button
             className="theme-toggle"
             onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to light mode'}
             title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           >
             <svg className="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -241,7 +261,7 @@ export default function Storefront() {
             {(['all', 'drinks', 'cigarettes', 'snacks'] as const).map(cat => (
               <button key={cat} className={`chip${category === cat ? ' active' : ''}`}
                 onClick={() => setCategory(cat)} aria-pressed={category === cat}>
-                {cat === 'all' ? 'All' : cat === 'drinks' ? '🍺 Drinks' : cat === 'cigarettes' ? '🚬 Cigarettes' : '🍿 Snacks'}
+                {cat === 'all' ? <span className="chip-text-only">All</span> : cat === 'drinks' ? <><span className="chip-icon">🍺</span><span className="chip-text"> Drinks</span></> : cat === 'cigarettes' ? <><span className="chip-icon">🚬</span><span className="chip-text"> Cigarettes</span></> : <><span className="chip-icon">🍿</span><span className="chip-text"> Snacks</span></>}
               </button>
             ))}
           </div>
@@ -508,6 +528,8 @@ export default function Storefront() {
           </button>
         </div>
       </div>
+      
+      <FloatingContact />
     </>
   );
 }
