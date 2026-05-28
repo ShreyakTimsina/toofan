@@ -1453,7 +1453,7 @@ tbody tr:hover { background: rgba(34,197,94,0.03); }
     border-top: 1px solid var(--clr-border);
     display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
     width: 100%; gap: 0; justify-content: space-around;
-    padding: 8px 0; margin: 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); margin: 0;
   }
   .nav-item { 
     position: relative;

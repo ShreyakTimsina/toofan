@@ -247,7 +247,7 @@ export default function AdminPanel() {
   };
 
   /* ── Orders Logic ── */
-  let activeOrders = orders.filter(o => !o.isDeleted);
+  let activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'delivered');
   
   if (user?.role === 'manager') {
     // Restrict to last 7 days
@@ -429,7 +429,7 @@ export default function AdminPanel() {
   /* ── Tabs configuration ── */
   const TABS: { id: Tab, label: string, icon: string, roles: AdminRole[] }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['owner'] },
-    { id: 'analytics', label: 'Analytics', icon: '📈', roles: ['owner'] },
+    { id: 'analytics', label: 'Reports', icon: '📈', roles: ['owner'] },
     { id: 'orders', label: 'Orders', icon: '🛒', roles: ['owner', 'manager', 'rider'] },
     { id: 'settings', label: 'Settings', icon: '⚙️', roles: ['owner', 'manager'] },
   ];
@@ -523,7 +523,7 @@ export default function AdminPanel() {
               <div className="table-wrap">
                 <table>
                   <thead><tr>
-                    <th>ID</th><th>Customer</th><th>Date</th><th>Items</th>
+                    <th>Customer</th><th>Date</th><th>Items</th>
                     {/* Hide Total column for riders, or conditionally hide value for managers */}
                     {user.role !== 'rider' && <th>Total</th>}
                     <th>Status</th><th>Actions</th><th></th>
@@ -537,7 +537,6 @@ export default function AdminPanel() {
                       return (
                         <React.Fragment key={order.id}>
                           <tr>
-                            <td><code>{order.id.slice(-8)}</code></td>
                             <td>
                               <strong>{order.name}</strong><br/>
                               <span style={{fontSize:'11px'}}>{order.phone}</span>
