@@ -85,8 +85,8 @@ export default function AdminPanel() {
         } catch (e) {}
       }
       const savedTheme = (localStorage.getItem('toofan_theme') as 'dark' | 'light') || 'light';
-      setTheme(saved);
-      document.documentElement.setAttribute('data-theme', saved);
+      setTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
 
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
