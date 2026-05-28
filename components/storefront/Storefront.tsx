@@ -22,6 +22,12 @@ const MapAddressPicker = dynamic(
   )}
 );
 
+const CATEGORY_ICONS = {
+  drinks: '🍺',
+  cigarettes: '🚬',
+  snacks: '🍿',
+};
+
 export default function Storefront() {
   const [products, setProducts]         = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -300,7 +306,7 @@ export default function Storefront() {
                       blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mO88R8AArcB13X5/6kAAAAASUVORK5CYII="
                       onError={() => {}}
                     />
-                    <span className={`badge badge--${product.category} card-category-badge`}>{CATEGORY_LABELS[product.category]}</span>
+                    <span className={`badge badge--${product.category} card-category-badge`} title={CATEGORY_LABELS[product.category]} aria-label={CATEGORY_LABELS[product.category]}>{CATEGORY_ICONS[product.category]}</span>
                   </div>
                   <div className="card-body">
                     <h2 className="card-name">{product.name}</h2>
