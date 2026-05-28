@@ -20,7 +20,7 @@ export default function FloatingContact({ deferredPrompt, onInstall }: { deferre
         .floating-actions {
           position: fixed;
           bottom: 24px;
-          left: 24px;
+          right: 24px;
           z-index: 999;
           display: flex;
           flex-direction: column;
@@ -51,7 +51,8 @@ export default function FloatingContact({ deferredPrompt, onInstall }: { deferre
         @media (max-width: 540px) {
           .floating-actions {
             bottom: 84px; /* above the mobile order bar */
-            left: 16px;
+            right: 16px;
+            left: auto;
             gap: 12px;
           }
           .action-btn {
