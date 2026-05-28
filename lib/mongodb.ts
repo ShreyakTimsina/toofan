@@ -32,6 +32,11 @@ export async function connectDB(): Promise<Db> {
     socketTimeoutMS: 45000,
   });
 
-  cached.conn = client.connect().then(c => c.db(dbName));
+  cached.conn = client.connect()
+    .then(c => c.db(dbName))
+    .catch(err => {
+      cached.conn = null;
+      throw err;
+    });
   return cached.conn;
 }
