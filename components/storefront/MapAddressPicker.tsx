@@ -103,6 +103,10 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const L = (window as any).L;
       if (!L || !mapRef.current) return;
+      
+      // Prevent "Map container is already initialized" error in React Strict Mode / Fast Refresh
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((mapRef.current as any)._leaflet_id) return;
 
       const map = L.map(mapRef.current, {
         center: DEFAULT_CENTER,
