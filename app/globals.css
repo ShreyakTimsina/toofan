@@ -1451,7 +1451,7 @@ tbody tr:hover { background: rgba(34,197,94,0.03); }
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
     background: var(--clr-glass-light); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--clr-border);
-    flex-direction: row; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
     width: 100%; gap: 0; justify-content: space-around;
     padding: 8px 0; margin: 0;
   }
