@@ -58,10 +58,14 @@ export default function Storefront() {
     setSortMode(getSettings().defaultSort);
 
     // Products from MongoDB
-    fetchProducts().then(prods => {
-      setProducts(prods.filter(p => p.active !== false));
-      setProductsLoading(false);
-    });
+    fetchProducts()
+      .then(prods => {
+        if (Array.isArray(prods)) {
+          setProducts(prods.filter(p => p.active !== false));
+        }
+      })
+      .catch(err => console.error('[Storefront] fetchProducts error:', err))
+      .finally(() => setProductsLoading(false));
 
     // PWA Install
     window.addEventListener('beforeinstallprompt', (e) => {
