@@ -1452,17 +1452,17 @@ tbody tr:hover { background: rgba(34,197,94,0.03); }
     background: var(--clr-glass-light); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--clr-border);
     flex-direction: row; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    width: 100%; gap: 12px; justify-content: flex-start;
-    padding: 10px 16px; margin: 0;
+    width: 100%; gap: 0; justify-content: space-around;
+    padding: 8px 0; margin: 0;
   }
   .nav-item { 
-    flex-direction: row; align-items: center; justify-content: center; gap: 6px;
-    padding: 8px 10px; width: auto; 
+    flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    padding: 4px; width: auto; flex: 1;
     background: transparent !important; border: none !important;
-    flex-shrink: 0; border-radius: 8px;
+    flex-shrink: 0; border-radius: 0;
   }
-  .nav-icon { font-size: 18px; }
-  .nav-label { display: block; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .nav-icon { font-size: 22px; }
+  .nav-label { display: block; font-size: 10px; font-weight: 500; white-space: nowrap; text-align: center; }
   .nav-item.active { color: var(--clr-accent); }
   .admin-sidebar-footer { grid-area: footer; margin-top: 0 !important; flex-direction: row !important; align-items: center; }
   .admin-sidebar-footer .btn { display: none; } /* Hide install app in admin mobile header to save space */
