@@ -86,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           },
         })}} />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <a href="#main-content" style={{
           position:'fixed',top:'8px',left:'8px',zIndex:9999,

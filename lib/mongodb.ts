@@ -6,14 +6,13 @@ const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB || 'toofan';
 
 interface MongoCache {
-  client: MongoClient | null;
-  db: Db | null;
+  conn: Promise<Db> | null;
 }
 
 // In development we reuse the connection across hot-reloads
 const globalWithMongo = global as typeof global & { _mongoCache?: MongoCache };
 
-const cached: MongoCache = globalWithMongo._mongoCache ?? { client: null, db: null };
+const cached: MongoCache = globalWithMongo._mongoCache ?? { conn: null };
 if (!globalWithMongo._mongoCache) {
   globalWithMongo._mongoCache = cached;
 }
@@ -25,11 +24,14 @@ export async function connectDB(): Promise<Db> {
     );
   }
 
-  if (cached.client && cached.db) return cached.db;
+  if (cached.conn) return cached.conn;
 
-  const client = new MongoClient(uri);
-  await client.connect();
-  cached.client = client;
-  cached.db = client.db(dbName);
-  return cached.db;
+  const client = new MongoClient(uri, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  });
+
+  cached.conn = client.connect().then(c => c.db(dbName));
+  return cached.conn;
 }
