@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Product, Order, OrderStatus, AdminUser, AdminRole } from '@/lib/types';
@@ -66,6 +66,37 @@ export default function AdminPanel() {
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
+  // Notifications
+  const prevOrdersLenRef = useRef<number | null>(null);
+
+  const playChime = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+      gain.gain.setValueAtTime(1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {}
+  };
+
+  const notifyNewOrder = () => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('New Order Received! 🌪', {
+        body: 'A customer has just placed a new order. Check the Admin Panel.',
+        icon: '/icons/icon-192x192.png'
+      });
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedUserStr = localStorage.getItem('toofan_admin_user');
@@ -95,6 +126,36 @@ export default function AdminPanel() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Background Polling & Notifications
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (user) {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+
+      interval = setInterval(async () => {
+        try {
+          const ords = await fetchOrders();
+          setOrders(ords);
+        } catch (e) {}
+      }, 15000); // Poll every 15 seconds
+    }
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Trigger chime on new order
+  useEffect(() => {
+    if (!user) return;
+    const activeLen = orders.filter(o => !o.isDeleted).length;
+    
+    if (prevOrdersLenRef.current !== null && activeLen > prevOrdersLenRef.current) {
+      playChime();
+      notifyNewOrder();
+    }
+    prevOrdersLenRef.current = activeLen;
+  }, [orders, user]);
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';

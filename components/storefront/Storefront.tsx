@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import Fuse from 'fuse.js';
 import type { Product, Cart, SortMode, Category, DeliveryCoords } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
 import {
@@ -107,8 +108,11 @@ export default function Storefront() {
   const filtered = (() => {
     let r = products.filter(p => category === 'all' || p.category === category);
     if (query) {
-      const q = query.toLowerCase();
-      r = r.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
+      const fuse = new Fuse(r, {
+        keys: ['name', 'description'],
+        threshold: 0.4,
+      });
+      r = fuse.search(query).map(result => result.item);
     }
     switch (sortMode) {
       case 'popularity': r = [...r].sort((a,b) => (b.orderCount||0) - (a.orderCount||0)); break;
@@ -285,7 +289,17 @@ export default function Storefront() {
               return (
                 <article key={product.id} className={`product-card${qty > 0 ? ' in-cart' : ''}`} role="listitem" aria-label={product.name}>
                   <div className="card-img-wrap">
-                    <Image src={product.image} alt={`${product.name} — ${CATEGORY_LABELS[product.category]} from Toofan`} fill style={{objectFit:'contain',padding:'16px'}} loading="lazy" onError={() => {}}/>
+                    <Image 
+                      src={product.image} 
+                      alt={`${product.name} — ${CATEGORY_LABELS[product.category]} from Toofan`} 
+                      fill 
+                      sizes="(max-width: 540px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      style={{objectFit:'contain',padding:'16px'}} 
+                      loading="lazy" 
+                      placeholder="blur"
+                      blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mO88R8AArcB13X5/6kAAAAASUVORK5CYII="
+                      onError={() => {}}
+                    />
                     <span className={`badge badge--${product.category} card-category-badge`}>{CATEGORY_LABELS[product.category]}</span>
                   </div>
                   <div className="card-body">
@@ -393,7 +407,16 @@ export default function Storefront() {
               return (
                 <div key={id} className="cart-item" role="listitem">
                   <div className="cart-item-img">
-                    <Image src={p.image} alt={p.name} fill style={{objectFit:'contain',padding:'6px'}} loading="lazy"/>
+                    <Image 
+                      src={p.image} 
+                      alt={p.name} 
+                      fill 
+                      sizes="80px"
+                      style={{objectFit:'contain',padding:'6px'}} 
+                      loading="lazy"
+                      placeholder="blur"
+                      blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mO88R8AArcB13X5/6kAAAAASUVORK5CYII="
+                    />
                   </div>
                   <div className="cart-item-info">
                     <div className="cart-item-name">{p.name}</div>
