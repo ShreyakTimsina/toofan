@@ -48,7 +48,7 @@ export type AdminRole = 'owner' | 'manager' | 'rider';
 
 export interface AdminUser {
   id: string;
-  username: string;
+  phone: string;
   password?: string; // Hashed or plain (since it's a simple app, we can do plain or a simple hash)
   role: AdminRole;
   name: string;

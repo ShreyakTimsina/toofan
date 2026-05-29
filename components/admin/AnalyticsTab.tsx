@@ -10,8 +10,11 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   const chartData = useMemo(() => {
-    const activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'cancelled');
+    const activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'cancelled')
+      .sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     
     // Filter by timeframe
     const now = new Date();
@@ -63,7 +66,14 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
   const totalRevenue = chartData.reduce((s, d) => s + d.revenue, 0);
   const totalOrders = chartData.reduce((s, d) => s + d.orders, 0);
 
-  const completedOrders = useMemo(() => orders.filter(o => o.status === 'delivered' || o.status === 'cancelled').sort((a,b)=>new Date(b.timestamp).getTime()-new Date(a.timestamp).getTime()), [orders]);
+  const completedOrders = useMemo(() => {
+    let list = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled').sort((a,b)=>new Date(b.timestamp).getTime()-new Date(a.timestamp).getTime());
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(o => o.name.toLowerCase().includes(q) || o.phone.includes(q) || (o.remarks && o.remarks.toLowerCase().includes(q)));
+    }
+    return list;
+  }, [orders, searchQuery]);
 
   return (
     <div className="analytics-wrap" style={{ padding: '24px' }}>
@@ -103,9 +113,9 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-        <div style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '24px' }}>
-          <h4 style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--clr-text-2)' }}>Revenue Overview</h4>
-          <div style={{ width: '100%', height: '250px' }}>
+        <div>
+          <h4 style={{ marginBottom: '12px', fontSize: '15px', fontWeight: 600, color: 'var(--clr-text-1)' }}>Revenue Overview</h4>
+          <div style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '16px', height: '250px' }}>
             {chartData.length === 0 ? (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--clr-text-3)' }}>No data</div>
             ) : (
@@ -113,7 +123,7 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--clr-border)" vertical={false} />
                   <XAxis dataKey="date" stroke="var(--clr-text-3)" fontSize={10} tickMargin={8} />
-                  <YAxis stroke="var(--clr-text-3)" fontSize={10} tickFormatter={(v) => `Rs.${v}`} width={60} />
+                  <YAxis stroke="var(--clr-text-3)" fontSize={10} tickFormatter={(v) => `Rs.${v >= 1000 ? (v/1000).toFixed(1).replace('.0','') + 'k' : v}`} width={50} />
                   <Tooltip contentStyle={{ background: 'var(--clr-bg-2)', border: '1px solid var(--clr-border)', borderRadius: '8px', fontSize: '12px' }} itemStyle={{ color: 'var(--clr-accent)' }} />
                   <Line type="monotone" dataKey="revenue" name="Revenue" stroke="var(--clr-accent)" strokeWidth={3} dot={{ r: 3, fill: 'var(--clr-bg)' }} activeDot={{ r: 5 }} />
                 </LineChart>
@@ -122,20 +132,20 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
           </div>
         </div>
 
-        <div style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '24px' }}>
-          <h4 style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--clr-text-2)' }}>Number of Orders</h4>
-          <div style={{ width: '100%', height: '250px' }}>
+        <div>
+          <h4 style={{ marginBottom: '12px', fontSize: '15px', fontWeight: 600, color: 'var(--clr-text-1)' }}>Number of Orders</h4>
+          <div style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '16px', height: '250px' }}>
             {chartData.length === 0 ? (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--clr-text-3)' }}>No data</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--clr-border)" vertical={false} />
                   <XAxis dataKey="date" stroke="var(--clr-text-3)" fontSize={10} tickMargin={8} />
-                  <YAxis stroke="var(--clr-text-3)" fontSize={10} allowDecimals={false} width={30} />
+                  <YAxis stroke="var(--clr-text-3)" fontSize={10} tickFormatter={(v) => v >= 1000 ? (v/1000).toFixed(1).replace('.0','') + 'k' : v} allowDecimals={false} width={30} />
                   <Tooltip contentStyle={{ background: 'var(--clr-bg-2)', border: '1px solid var(--clr-border)', borderRadius: '8px', fontSize: '12px' }} itemStyle={{ color: '#8b5cf6' }} />
-                  <Bar dataKey="orders" name="Orders" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line type="monotone" dataKey="orders" name="Orders" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3, fill: 'var(--clr-bg)' }} activeDot={{ r: 5 }} />
+                </LineChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -145,6 +155,7 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
       <div className="orders-wrap">
         <div className="orders-header">
           <h3>Completed Orders</h3>
+          <input type="search" className="table-search" placeholder="Search orders..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
         </div>
         <div className="table-wrap">
           <table>
@@ -158,23 +169,32 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
                 completedOrders.map(order => {
                   const d = new Date(order.timestamp);
                   return (
-                    <tr key={order.id}>
-                      <td>
-                        <strong>{order.name}</strong><br/>
-                        <span style={{fontSize:'11px'}}>{order.phone}</span>
-                      </td>
-                      <td style={{fontSize:'12px'}}>{d.toLocaleDateString()} {d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
-                      <td style={{fontSize:'12px'}}>{order.items?.reduce((s,i)=>s+i.qty,0)||0} items</td>
-                      <td style={{fontWeight:700,color:'var(--clr-accent)'}}>Rs.{order.total?.toLocaleString()}</td>
-                      <td>
-                        <span style={{
-                          fontSize:'11px', fontWeight:600, textTransform:'uppercase',
-                          color: order.status === 'delivered' ? 'var(--clr-accent)' : 'var(--clr-red)'
-                        }}>
-                          {order.status}
-                        </span>
-                      </td>
-                    </tr>
+                    <React.Fragment key={order.id}>
+                      <tr>
+                        <td>
+                          <strong>{order.name}</strong><br/>
+                          <span style={{fontSize:'11px'}}>{order.phone}</span>
+                        </td>
+                        <td style={{fontSize:'12px'}}>{d.toLocaleDateString()} {d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+                        <td style={{fontSize:'12px'}}>{order.items?.reduce((s,i)=>s+i.qty,0)||0} items</td>
+                        <td style={{fontWeight:700,color:'var(--clr-accent)'}}>Rs.{order.total?.toLocaleString()}</td>
+                        <td>
+                          <span style={{
+                            fontSize:'11px', fontWeight:600, textTransform:'uppercase',
+                            color: order.status === 'delivered' ? 'var(--clr-accent)' : 'var(--clr-red)'
+                          }}>
+                            {order.status}
+                          </span>
+                        </td>
+                      </tr>
+                      {order.remarks && (
+                        <tr className="order-detail-row">
+                          <td colSpan={5} className="order-detail-cell" style={{fontSize: '12px', background: 'var(--clr-bg)', padding: '8px 12px'}}>
+                            <strong>Message:</strong> {order.remarks}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}

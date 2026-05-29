@@ -4,7 +4,7 @@ import type { AdminUser } from '@/lib/types';
 
 export async function POST(req: Request) {
   try {
-    const { username, otp } = await req.json();
+    const { phone, otp } = await req.json();
     
     // Simulate OTP verification
     if (otp !== '123456') {
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const db = await connectDB();
-    const user = await db.collection<AdminUser>('users').findOne({ username });
+    const user = await db.collection<AdminUser>('users').findOne({ phone });
     
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

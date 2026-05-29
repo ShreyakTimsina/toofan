@@ -17,7 +17,7 @@ type Tab = 'dashboard' | 'analytics' | 'orders' | 'settings';
 
 export default function AdminPanel() {
   const [user, setUser]             = useState<AdminUser | null>(null);
-  const [uname, setUname]           = useState('');
+  const [uname, setUname]           = useState(''); // we will repurpose this for phone number in login state
   const [loginStep, setLoginStep]   = useState<'username' | 'otp'>('username');
   const [otp, setOtp]               = useState('');
   const [authError, setAuthError]   = useState('');
@@ -55,7 +55,7 @@ export default function AdminPanel() {
   const [pfImage, setPfImage]   = useState('');
 
   // User form
-  const [ufUsername, setUfUsername] = useState('');
+  const [ufPhone, setUfPhone]       = useState('');
   const [ufPassword, setUfPassword] = useState('');
   const [ufName, setUfName]         = useState('');
   const [ufRole, setUfRole]         = useState<AdminRole>('rider');
@@ -212,10 +212,10 @@ export default function AdminPanel() {
     e.preventDefault();
     setAuthError('');
     try {
-      await sendOtpAPI(uname);
+      const { ok, error } = await sendOtpAPI(uname); // sending 'phone' as payload inside sendOtpAPI via 'phone: uname'
+      if (!ok) throw new Error(error || 'User not found');
       setLoginStep('otp');
-      addToast('OTP sent (use 123456 for testing)');
-    } catch (err) {
+    } catch (e: any) {
       setAuthError('User not found.');
     }
   };
@@ -368,18 +368,47 @@ export default function AdminPanel() {
   };
 
   /* ── Users ── */
-  const openAddUser = () => { setUfUsername(''); setUfPassword(''); setUfName(''); setUfRole('rider'); setUserModalOpen(true); };
   const saveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const newUser = await saveUserAPI({ username: ufUsername, password: ufPassword, name: ufName, role: ufRole });
-      setUsers(prev => [...prev, newUser]);
-      addToast('User created!');
+      if (editingId) {
+        // Edit User
+        const res = await fetch('/api/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingId, phone: ufPhone, password: ufPassword, role: ufRole, name: ufName })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error);
+        setUsers(users.map(u => u.id === editingId ? data.user : u));
+      } else {
+        // Create User
+        const res = await saveUserAPI({ phone: ufPhone, password: ufPassword, role: ufRole, name: ufName });
+        if (!res.ok) throw new Error(res.error);
+        setUsers([...users, res.user!]);
+      }
       setUserModalOpen(false);
-    } catch {
-      addToast('Failed to create user. Username may be taken.');
+      addToast(editingId ? 'User updated' : 'User created');
+    } catch (e: any) {
+      alert(e.message);
     }
   };
+
+  const openAddUser = () => {
+    setEditingId(null);
+    setUfPhone(''); setUfPassword(''); setUfName(''); setUfRole('rider');
+    setUserModalOpen(true);
+  };
+
+  const openEditUser = (u: AdminUser) => {
+    setEditingId(u.id);
+    setUfPhone(u.phone || '');
+    setUfPassword(''); // don't load password
+    setUfName(u.name || '');
+    setUfRole(u.role || 'rider');
+    setUserModalOpen(true);
+  };
+
   const deleteUser = async () => {
     if (!confirmUserId) return;
     try {
@@ -403,9 +432,9 @@ export default function AdminPanel() {
         </div>
         <form className="admin-form" onSubmit={loginStep === 'username' ? handleRequestOtp : handleVerifyOtp}>
           {loginStep === 'username' ? (
-            <div style={{marginBottom:'14px'}}>
-              <label htmlFor="admin-uname">Email or Phone Number</label>
-              <input id="admin-uname" type="text" value={uname} onChange={e=>setUname(e.target.value)} required placeholder="Enter your username, email or phone"/>
+            <div className="form-group">
+              <label>Phone Number</label>
+              <input type="tel" className="form-input" value={uname} onChange={e=>setUname(e.target.value)} required autoFocus placeholder="e.g. 9800000000"/>
             </div>
           ) : (
             <div style={{marginBottom:'14px'}}>
@@ -436,7 +465,11 @@ export default function AdminPanel() {
   const allowedTabs = TABS.filter(t => t.roles.includes(user.role));
 
   return (
-    <div className="admin-shell">
+    <div className="admin-shell" style={{
+      '--clr-accent': theme === 'light' ? '#111111' : '#ffffff',
+      '--clr-accent-2': theme === 'light' ? '#444444' : '#cccccc',
+      '--clr-accent-glow': 'rgba(128, 128, 128, 0.2)',
+    } as React.CSSProperties}>
       {/* ── Sidebar ── */}
       <aside className="admin-sidebar" role="navigation">
         <div className="admin-sidebar-logo">
@@ -581,6 +614,11 @@ export default function AdminPanel() {
                                 {order.items?.map((item,i) => (
                                   <div key={i}><strong>{item.name}</strong> ×{item.qty} {(!hideRevenue && user.role !== 'rider') && `— Rs.${item.price*item.qty}`}</div>
                                 ))}
+                                {order.remarks && (
+                                  <div style={{marginTop:'10px',fontSize:'12px', background: 'var(--clr-bg)', padding: '8px 12px', borderRadius: '4px'}}>
+                                    <strong>Message:</strong> {order.remarks}
+                                  </div>
+                                )}
                                 <div style={{marginTop:'10px',fontSize:'12px'}}><strong>Address:</strong> {order.address}</div>
                                 {order.deliveryCoords && (
                                   <div style={{marginTop:'4px',fontSize:'11px'}}>
@@ -641,13 +679,16 @@ export default function AdminPanel() {
                   </div>
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Phone</th><th>Name</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
                       <tbody>
                         {users.map(u => (
                           <tr key={u.id}>
-                            <td>{u.username}</td><td>{u.name}</td><td>{u.role}</td>
+                            <td>{u.phone}</td><td>{u.name}</td><td>{u.role}</td>
                             <td>{new Date(u.createdAt).toLocaleDateString()}</td>
-                            <td>{u.username !== 'admin' && <button className="icon-btn delete" onClick={()=>setConfirmUserId(u.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}</td>
+                            <td>
+                              <button className="icon-btn edit" onClick={()=>openEditUser(u)}>✏️</button>
+                              {u.role !== 'owner' && <button className="icon-btn delete" onClick={()=>setConfirmUserId(u.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -704,14 +745,14 @@ export default function AdminPanel() {
       {userModalOpen && (
         <div className="admin-modal-backdrop open">
           <div className="admin-modal">
-            <h3>Add User</h3>
+            <h3>{editingId ? 'Edit User' : 'Add User'}</h3>
             <form onSubmit={saveUser}>
               <div className="form-group"><label>Name</label><input className="form-input" value={ufName} onChange={e=>setUfName(e.target.value)} required/></div>
-              <div className="form-group"><label>Username</label><input className="form-input" value={ufUsername} onChange={e=>setUfUsername(e.target.value)} required/></div>
-              <div className="form-group"><label>Password</label><input type="password" className="form-input" value={ufPassword} onChange={e=>setUfPassword(e.target.value)} required/></div>
-              <div className="form-group"><label>Role</label><select className="form-input" value={ufRole} onChange={e=>setUfRole(e.target.value as AdminRole)}><option value="manager">Manager</option><option value="rider">Rider</option><option value="owner">Owner</option></select></div>
+              <div className="form-group"><label>Phone Number</label><input type="tel" className="form-input" value={ufPhone} onChange={e=>setUfPhone(e.target.value)} required/></div>
+              <div className="form-group"><label>Password (Optional)</label><input type="password" className="form-input" value={ufPassword} onChange={e=>setUfPassword(e.target.value)} placeholder={editingId ? 'Leave blank to keep unchanged' : ''}/></div>
+              <div className="form-group"><label>Role / Position</label><select className="form-input" value={ufRole} onChange={e=>setUfRole(e.target.value as AdminRole)}><option value="manager">Manager</option><option value="rider">Rider</option><option value="owner">Owner</option></select></div>
               <div className="admin-modal-actions">
-                <button type="submit" className="btn btn-accent">Create User</button>
+                <button type="submit" className="btn btn-accent">{editingId ? 'Save Changes' : 'Create User'}</button>
                 <button type="button" className="btn btn-ghost" onClick={()=>setUserModalOpen(false)}>Cancel</button>
               </div>
             </form>

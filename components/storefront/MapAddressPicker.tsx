@@ -256,7 +256,7 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
           </div>
           <div className="map-picker__legend-item">
             <div className="map-picker__legend-dot map-picker__legend-dot--delivery" />
-            Delivery pin (drag or tap map)
+            Drag the green marker to set exact location
           </div>
         </div>
 
@@ -282,7 +282,7 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
           <input
             type="text"
             className={`map-picker__address-input${hasError && !addressText.trim() ? ' has-error' : ''}`}
-            placeholder="Type address or tap the map to pin delivery location…"
+            placeholder="Search address or tap map to pin..."
             value={addressText}
             onChange={e => handleAddressChange(e.target.value)}
             aria-label="Delivery address text"
