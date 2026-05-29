@@ -376,9 +376,8 @@ export default function AdminPanel() {
         if (!data.ok) throw new Error(data.error);
         setUsers(users.map(u => u.id === editingId ? data.user : u));
       } else {
-        const res = await saveUserAPI({ phone: ufPhone, password: ufPassword, role: ufRole, name: ufName });
-        if (!res.ok) throw new Error(res.error);
-        setUsers([...users, res.user!]);
+        const newUser = await saveUserAPI({ phone: ufPhone, password: ufPassword, role: ufRole, name: ufName });
+        setUsers([...users, newUser]);
       }
       setUserModalOpen(false);
       addToast(editingId ? 'User updated' : 'User created');
