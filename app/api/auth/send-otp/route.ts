@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         } as AdminUser,
         {
           id: 'default-developer',
-          phone: '9800000001',
+          phone: '9863626262',
           role: 'developer',
           name: 'Developer',
           createdAt: new Date().toISOString()
