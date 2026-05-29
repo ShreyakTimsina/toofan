@@ -1249,7 +1249,7 @@ tbody tr:hover { background: var(--clr-bg-3); }
   .cart-sidebar { width: 100vw; }
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .card-body { padding: 10px; }
-  .card-footer { flex-direction: column; gap: 8px; align-items: flex-start; padding: 0 10px 10px; }
+  .card-footer { flex-direction: row; align-items: center; justify-content: space-between; padding: 0 10px 10px; gap: 8px; }
   .hero-stat { padding: 10px 14px; }
 }
 

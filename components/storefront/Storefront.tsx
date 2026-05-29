@@ -82,7 +82,10 @@ export default function Storefront() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      alert("To install the Toofan app on your iPhone or iPad, tap the Share icon at the bottom of your screen, then select 'Add to Home Screen'.");
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') setDeferredPrompt(null);
