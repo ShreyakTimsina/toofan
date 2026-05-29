@@ -11,15 +11,24 @@ export async function POST(req: Request) {
     const usersCol = db.collection<AdminUser>('users');
     const userCount = await usersCol.countDocuments();
     
-    // Auto-create default admin if empty
+    // Auto-create default admin and developer if empty
     if (userCount === 0) {
-      await usersCol.insertOne({
-        id: 'default-owner',
-        phone: '9800000000',
-        role: 'owner',
-        name: 'Super Admin',
-        createdAt: new Date().toISOString()
-      } as AdminUser);
+      await usersCol.insertMany([
+        {
+          id: 'default-owner',
+          phone: '9800000000',
+          role: 'owner',
+          name: 'Super Admin',
+          createdAt: new Date().toISOString()
+        } as AdminUser,
+        {
+          id: 'default-developer',
+          phone: '9800000001',
+          role: 'developer',
+          name: 'Developer',
+          createdAt: new Date().toISOString()
+        } as AdminUser
+      ]);
     }
     
     const user = await usersCol.findOne({ phone });
