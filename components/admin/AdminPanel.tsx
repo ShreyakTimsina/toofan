@@ -212,8 +212,7 @@ export default function AdminPanel() {
     e.preventDefault();
     setAuthError('');
     try {
-      const { ok, error } = await sendOtpAPI(uname); 
-      if (!ok) throw new Error(error || 'User not found');
+      await sendOtpAPI(uname); 
       setLoginStep('otp');
     } catch (e: any) {
       setAuthError('User not found.');
