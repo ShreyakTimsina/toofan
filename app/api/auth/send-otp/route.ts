@@ -4,7 +4,9 @@ import type { AdminUser } from '@/lib/types';
 
 export async function POST(req: Request) {
   try {
-    const { phone } = await req.json();
+    const body = await req.json();
+    console.log('[DEBUG] send-otp payload:', body);
+    const phone = body.phone?.trim() || body.username?.trim();
     const db = await connectDB();
     
     // Check if user exists (fallback to default 'admin' if empty handled separately, but we'll just check)
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
     }
     
     const user = await usersCol.findOne({ phone });
+    console.log('[DEBUG] DB result for phone', phone, ':', user);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

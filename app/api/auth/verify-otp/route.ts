@@ -4,7 +4,9 @@ import type { AdminUser } from '@/lib/types';
 
 export async function POST(req: Request) {
   try {
-    const { phone, otp } = await req.json();
+    const body = await req.json();
+    const phone = body.phone?.trim() || body.username?.trim();
+    const otp = body.otp?.trim();
     
     // Simulate OTP verification
     if (otp !== '123456') {
