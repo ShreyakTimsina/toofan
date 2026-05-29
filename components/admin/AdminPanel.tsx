@@ -246,7 +246,7 @@ export default function AdminPanel() {
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  let activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'delivered');
+  let activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'delivered' && o.status !== 'cancelled');
   
   if (user?.role === 'manager') {
     const sevenDaysAgo = new Date();

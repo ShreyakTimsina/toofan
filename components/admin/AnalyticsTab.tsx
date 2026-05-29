@@ -14,7 +14,7 @@ export default function AnalyticsTab({ orders, onSoftDelete }: { orders: Order[]
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
-    const activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'cancelled')
+    const activeOrders = orders.filter(o => !o.isDeleted)
       .sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     
     // Filter by timeframe
@@ -155,7 +155,7 @@ export default function AnalyticsTab({ orders, onSoftDelete }: { orders: Order[]
 
       <div className="orders-wrap">
         <div className="orders-header">
-          <h3>Completed Orders</h3>
+          <h3>Completed & Cancelled Orders</h3>
           <input type="search" className="table-search" placeholder="Search orders..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
         </div>
         <div className="table-wrap">
@@ -165,7 +165,7 @@ export default function AnalyticsTab({ orders, onSoftDelete }: { orders: Order[]
             </tr></thead>
             <tbody>
               {completedOrders.length === 0 ? (
-                <tr><td colSpan={5} style={{textAlign:'center', color:'var(--clr-text-3)'}}>No completed orders found.</td></tr>
+                <tr><td colSpan={6} style={{textAlign:'center', color:'var(--clr-text-3)'}}>No completed or cancelled orders found.</td></tr>
               ) : (
                 completedOrders.map(order => {
                   const d = new Date(order.timestamp);
