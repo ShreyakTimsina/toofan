@@ -470,6 +470,27 @@ export default function AdminPanel() {
       '--clr-accent-2': theme === 'light' ? '#444444' : '#cccccc',
       '--clr-accent-glow': 'rgba(128, 128, 128, 0.2)',
     } as React.CSSProperties}>
+      <style>{`
+        .admin-shell .stat-card,
+        .admin-shell .table-wrap,
+        .admin-shell .btn,
+        .admin-shell .form-input,
+        .admin-shell .admin-modal,
+        .admin-shell .admin-login-card,
+        .admin-shell .table-filter,
+        .admin-shell .table-search,
+        .admin-shell .status-select,
+        .admin-shell .admin-sidebar,
+        .admin-shell .badge,
+        .admin-shell .customer-badge,
+        .admin-shell .analytics-card {
+          border-radius: 0 !important;
+        }
+        .admin-shell .icon-btn.delete { color: var(--clr-red) !important; }
+        .admin-shell .icon-btn.delete:hover { background: rgba(244,63,94,0.1) !important; }
+        .admin-shell .icon-btn.edit { color: var(--clr-teal) !important; }
+        .admin-shell .icon-btn.edit:hover { background: rgba(45,212,191,0.1) !important; }
+      `}</style>
       {/* ── Sidebar ── */}
       <aside className="admin-sidebar" role="navigation">
         <div className="admin-sidebar-logo">

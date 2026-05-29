@@ -11,6 +11,7 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
   const [customEnd, setCustomEnd] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
     const activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'cancelled')
@@ -115,7 +116,7 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '32px' }}>
         <div>
           <h4 style={{ marginBottom: '12px', fontSize: '15px', fontWeight: 600, color: 'var(--clr-text-1)' }}>Revenue Overview</h4>
-          <div style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '16px', height: '250px' }}>
+          <div className="analytics-card" style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', padding: '16px', height: '250px' }}>
             {chartData.length === 0 ? (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--clr-text-3)' }}>No data</div>
             ) : (
@@ -134,7 +135,7 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
 
         <div>
           <h4 style={{ marginBottom: '12px', fontSize: '15px', fontWeight: 600, color: 'var(--clr-text-1)' }}>Number of Orders</h4>
-          <div style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', borderRadius: '12px', padding: '16px', height: '250px' }}>
+          <div className="analytics-card" style={{ background: 'var(--clr-surface)', border: '1px solid var(--clr-border)', padding: '16px', height: '250px' }}>
             {chartData.length === 0 ? (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--clr-text-3)' }}>No data</div>
             ) : (
@@ -160,7 +161,7 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
         <div className="table-wrap">
           <table>
             <thead><tr>
-              <th>Customer</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th>
+              <th>Customer</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th></th>
             </tr></thead>
             <tbody>
               {completedOrders.length === 0 ? (
@@ -186,11 +187,29 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
                             {order.status}
                           </span>
                         </td>
+                        <td>
+                          <button className="expand-btn" onClick={()=>setExpandedOrder(expandedOrder===order.id?null:order.id)}>
+                            {expandedOrder===order.id?'⌃':'⌄'}
+                          </button>
+                        </td>
                       </tr>
-                      {order.remarks && (
+                      {expandedOrder === order.id && (
                         <tr className="order-detail-row">
-                          <td colSpan={5} className="order-detail-cell" style={{fontSize: '12px', background: 'var(--clr-bg)', padding: '8px 12px'}}>
-                            <strong>Message:</strong> {order.remarks}
+                          <td colSpan={6} className="order-detail-cell" style={{fontSize: '12px', background: 'var(--clr-bg)', padding: '8px 12px'}}>
+                            {order.items?.map((item,i) => (
+                              <div key={i}><strong>{item.name}</strong> ×{item.qty} — Rs.{item.price*item.qty}</div>
+                            ))}
+                            {order.remarks && (
+                              <div style={{marginTop:'10px'}}>
+                                <strong>Message:</strong> {order.remarks}
+                              </div>
+                            )}
+                            <div style={{marginTop:'10px'}}><strong>Address:</strong> {order.address}</div>
+                            {order.deliveryCoords && (
+                              <div style={{marginTop:'4px',fontSize:'11px'}}>
+                                📍 <a href={`https://www.google.com/maps?q=${order.deliveryCoords.lat},${order.deliveryCoords.lng}`} target="_blank" rel="noopener noreferrer" style={{color:'var(--clr-accent)'}}>View on Map</a>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       )}
