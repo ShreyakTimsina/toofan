@@ -72,17 +72,13 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
       deliveryMarkerRef.current.setLatLng(latlng);
     } else {
       const icon = L.divIcon({
-        html: `<div style="width:22px;height:22px;background:#22c55e;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(34,197,94,0.5)"></div>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
+        html: `<svg width="32" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12zm0 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" fill="#ef4444"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>`,
+        iconSize: [32, 42],
+        iconAnchor: [16, 42],
         className: '',
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const marker = L.marker(latlng, { icon, draggable: true }).addTo(map as any);
-      marker.on('dragend', async () => {
-        const pos = marker.getLatLng();
-        await updateDelivery({ lat: pos.lat, lng: pos.lng }, map);
-      });
+      const marker = L.marker(latlng, { icon }).addTo(map as any);
       deliveryMarkerRef.current = marker;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,9 +119,17 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
 
       mapInstanceRef.current = map;
 
-      // Click map to set delivery pin
-      map.on('click', async (e: { latlng: { lat: number; lng: number } }) => {
-        await updateDelivery({ lat: e.latlng.lat, lng: e.latlng.lng }, map);
+      // Keep marker at center while dragging
+      map.on('move', () => {
+        if (deliveryMarkerRef.current) {
+          deliveryMarkerRef.current.setLatLng(map.getCenter());
+        }
+      });
+
+      // Update delivery address when dragging stops
+      map.on('moveend', () => {
+        const center = map.getCenter();
+        updateDelivery({ lat: center.lat, lng: center.lng }, map);
       });
 
       setMapReady(true);
@@ -255,8 +259,8 @@ export default function MapAddressPicker({ onChange, hasError }: Props) {
             Your GPS location
           </div>
           <div className="map-picker__legend-item">
-            <div className="map-picker__legend-dot map-picker__legend-dot--delivery" />
-            Drag the green marker to set exact location
+            <div className="map-picker__legend-dot map-picker__legend-dot--delivery" style={{background: '#ef4444'}} />
+            Drag the map to set the red pin exactly on your delivery location
           </div>
         </div>
 
