@@ -139,7 +139,7 @@ export async function sendOtpAPI(username: string): Promise<void> {
   const res = await fetch('/api/auth/send-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username })
+    body: JSON.stringify({ phone: username })
   });
   if (!res.ok) throw new Error('User not found');
 }
@@ -148,7 +148,7 @@ export async function verifyOtpAPI(username: string, otp: string): Promise<impor
   const res = await fetch('/api/auth/verify-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, otp })
+    body: JSON.stringify({ phone: username, otp })
   });
   if (!res.ok) throw new Error('Invalid OTP');
   const data = await res.json();
