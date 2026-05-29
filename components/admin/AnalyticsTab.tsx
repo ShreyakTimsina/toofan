@@ -5,7 +5,7 @@ import type { Order } from '@/lib/types';
 
 type Timeframe = 'day' | 'week' | 'month' | 'year' | 'all';
 
-export default function AnalyticsTab({ orders }: { orders: Order[] }) {
+export default function AnalyticsTab({ orders, onSoftDelete }: { orders: Order[], onSoftDelete?: (id: string) => void }) {
   const [timeframe, setTimeframe] = useState<Timeframe>('week');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -207,7 +207,12 @@ export default function AnalyticsTab({ orders }: { orders: Order[] }) {
                             <div style={{marginTop:'10px'}}><strong>Address:</strong> {order.address}</div>
                             {order.deliveryCoords && (
                               <div style={{marginTop:'4px',fontSize:'11px'}}>
-                                📍 <a href={`https://www.google.com/maps?q=${order.deliveryCoords.lat},${order.deliveryCoords.lng}`} target="_blank" rel="noopener noreferrer" style={{color:'var(--clr-accent)'}}>View on Map</a>
+                                📍 <a href={`https://www.google.com/maps?q=${order.deliveryCoords.lat},${order.deliveryCoords.lng}`} target="_blank" rel="noopener noreferrer" style={{color:'var(--clr-text)'}}>View on Map</a>
+                              </div>
+                            )}
+                            {onSoftDelete && (
+                              <div style={{marginTop: '16px', display: 'flex', justifyContent: 'flex-end'}}>
+                                <button className="btn btn-danger" onClick={() => onSoftDelete(order.id)}>Delete Order</button>
                               </div>
                             )}
                           </td>

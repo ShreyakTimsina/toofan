@@ -171,13 +171,13 @@ export default function AdminPanel() {
       const ords = await fetchOrders();
       setOrders(ords);
       
-      if (role === 'owner' || role === 'manager') {
+      if (role === 'owner' || role === 'manager' || role === 'developer') {
         const prods = await fetchProducts();
         setProducts(prods.sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
-        if (role === 'owner') calcDashboard(ords, prods);
+        if (role === 'owner' || role === 'developer') calcDashboard(ords, prods);
       }
       
-      if (role === 'owner') {
+      if (role === 'owner' || role === 'developer') {
         const u = await fetchUsersAPI();
         setUsers(u);
       }
@@ -212,7 +212,7 @@ export default function AdminPanel() {
     e.preventDefault();
     setAuthError('');
     try {
-      const { ok, error } = await sendOtpAPI(uname); // sending 'phone' as payload inside sendOtpAPI via 'phone: uname'
+      const { ok, error } = await sendOtpAPI(uname); 
       if (!ok) throw new Error(error || 'User not found');
       setLoginStep('otp');
     } catch (e: any) {
@@ -246,11 +246,9 @@ export default function AdminPanel() {
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  /* ── Orders Logic ── */
   let activeOrders = orders.filter(o => !o.isDeleted && o.status !== 'delivered');
   
   if (user?.role === 'manager') {
-    // Restrict to last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     activeOrders = activeOrders.filter(o => new Date(o.timestamp) >= sevenDaysAgo);
@@ -308,7 +306,6 @@ export default function AdminPanel() {
     }
   };
 
-  /* ── Products ── */
   const openAdd  = () => { setEditingId(null); setPfName(''); setPfCat('drinks'); setPfPrice(''); setPfDesc(''); setPfImage(''); setModalOpen(true); };
   const openEdit = (p: Product) => { setEditingId(p.id); setPfName(p.name); setPfCat(p.category); setPfPrice(String(p.price)); setPfDesc(p.description); setPfImage(p.image); setModalOpen(true); };
 
@@ -367,12 +364,10 @@ export default function AdminPanel() {
     }
   };
 
-  /* ── Users ── */
   const saveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (editingId) {
-        // Edit User
         const res = await fetch('/api/users', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -382,7 +377,6 @@ export default function AdminPanel() {
         if (!data.ok) throw new Error(data.error);
         setUsers(users.map(u => u.id === editingId ? data.user : u));
       } else {
-        // Create User
         const res = await saveUserAPI({ phone: ufPhone, password: ufPassword, role: ufRole, name: ufName });
         if (!res.ok) throw new Error(res.error);
         setUsers([...users, res.user!]);
@@ -403,7 +397,7 @@ export default function AdminPanel() {
   const openEditUser = (u: AdminUser) => {
     setEditingId(u.id);
     setUfPhone(u.phone || '');
-    setUfPassword(''); // don't load password
+    setUfPassword(''); 
     setUfName(u.name || '');
     setUfRole(u.role || 'rider');
     setUserModalOpen(true);
@@ -421,7 +415,6 @@ export default function AdminPanel() {
     }
   };
 
-  /* ── Login View ── */
   if (!user) return (
     <div className="admin-login">
       <div className="admin-login-card">
@@ -455,43 +448,16 @@ export default function AdminPanel() {
 
   const pendingCount = activeOrders.filter(o => o.status === 'pending').length;
 
-  /* ── Tabs configuration ── */
   const TABS: { id: Tab, label: string, icon: string, roles: AdminRole[] }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['owner'] },
-    { id: 'analytics', label: 'Reports', icon: '📈', roles: ['owner'] },
-    { id: 'orders', label: 'Orders', icon: '🛒', roles: ['owner', 'manager', 'rider'] },
-    { id: 'settings', label: 'Settings', icon: '⚙️', roles: ['owner', 'manager'] },
+    { id: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['owner', 'developer'] },
+    { id: 'analytics', label: 'Reports', icon: '📈', roles: ['owner', 'developer'] },
+    { id: 'orders', label: 'Orders', icon: '🛒', roles: ['owner', 'developer', 'manager', 'rider'] },
+    { id: 'settings', label: 'Settings', icon: '⚙️', roles: ['owner', 'developer', 'manager'] },
   ];
   const allowedTabs = TABS.filter(t => t.roles.includes(user.role));
 
   return (
-    <div className="admin-shell" style={{
-      '--clr-accent': theme === 'light' ? '#111111' : '#ffffff',
-      '--clr-accent-2': theme === 'light' ? '#444444' : '#cccccc',
-      '--clr-accent-glow': 'rgba(128, 128, 128, 0.2)',
-    } as React.CSSProperties}>
-      <style>{`
-        .admin-shell .stat-card,
-        .admin-shell .table-wrap,
-        .admin-shell .btn,
-        .admin-shell .form-input,
-        .admin-shell .admin-modal,
-        .admin-shell .admin-login-card,
-        .admin-shell .table-filter,
-        .admin-shell .table-search,
-        .admin-shell .status-select,
-        .admin-shell .admin-sidebar,
-        .admin-shell .badge,
-        .admin-shell .customer-badge,
-        .admin-shell .analytics-card {
-          border-radius: 0 !important;
-        }
-        .admin-shell .icon-btn.delete { color: var(--clr-red) !important; }
-        .admin-shell .icon-btn.delete:hover { background: rgba(244,63,94,0.1) !important; }
-        .admin-shell .icon-btn.edit { color: var(--clr-teal) !important; }
-        .admin-shell .icon-btn.edit:hover { background: rgba(45,212,191,0.1) !important; }
-      `}</style>
-      {/* ── Sidebar ── */}
+    <div className="admin-shell">
       <aside className="admin-sidebar" role="navigation">
         <div className="admin-sidebar-logo">
           <div className="sidebar-mark" aria-hidden="true">🌪</div>
@@ -519,7 +485,6 @@ export default function AdminPanel() {
         </div>
       </aside>
 
-      {/* ── Main ── */}
       <div className="admin-main">
         <header className="admin-header">
           <h2>{allowedTabs.find(t=>t.id===tab)?.label || tab}</h2>
@@ -532,8 +497,7 @@ export default function AdminPanel() {
         <div className="admin-content">
           {loading && <p style={{color:'var(--clr-text-3)'}}>Loading data...</p>}
 
-          {/* ── Dashboard (Today Only) ── */}
-          {!loading && tab === 'dashboard' && user.role === 'owner' && (
+          {!loading && tab === 'dashboard' && (user.role === 'owner' || user.role === 'developer') && (
             <div>
               <div className="stat-grid">
                 <div className="stat-card"><div className="stat-label">Today's Orders</div><div className="stat-value">{stats.today}</div></div>
@@ -555,12 +519,10 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {/* ── Analytics (Charts & Reports) ── */}
-          {!loading && tab === 'analytics' && user.role === 'owner' && (
-            <AnalyticsTab orders={orders} />
+          {!loading && tab === 'analytics' && (user.role === 'owner' || user.role === 'developer') && (
+            <AnalyticsTab orders={orders} onSoftDelete={setConfirmOrderDelete} />
           )}
 
-          {/* ── Orders ── */}
           {!loading && tab === 'orders' && (
             <div className="orders-wrap">
               <div className="orders-header">
@@ -578,14 +540,12 @@ export default function AdminPanel() {
                 <table>
                   <thead><tr>
                     <th>Customer</th><th>Date</th><th>Items</th>
-                    {/* Hide Total column for riders, or conditionally hide value for managers */}
                     {user.role !== 'rider' && <th>Total</th>}
                     <th>Status</th><th>Actions</th><th></th>
                   </tr></thead>
                   <tbody>
                     {filteredOrders.map(order => {
                       const d = new Date(order.timestamp);
-                      // Manager hides revenue if delivered
                       const hideRevenue = user.role === 'manager' && order.status === 'delivered';
                       const returning = isReturningCustomer(order.phone, orders, order.id);
                       return (
@@ -618,7 +578,7 @@ export default function AdminPanel() {
                               )}
                             </td>
                             <td>
-                              {user.role === 'owner' && (
+                              {(user.role === 'owner' || user.role === 'developer') && (
                                 <button className="icon-btn delete" onClick={() => setConfirmOrderDelete(order.id)}>
                                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                 </button>
@@ -658,16 +618,14 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {/* ── Settings (Owner/Manager) ── */}
-          {!loading && tab === 'settings' && ['owner', 'manager'].includes(user.role) && (
+          {!loading && tab === 'settings' && ['owner', 'developer', 'manager'].includes(user.role) && (
             <div>
               <div className="settings-nav" style={{display:'flex',gap:'10px',marginBottom:'20px',overflowX:'auto',paddingBottom:'5px'}}>
                 <button className={`btn ${settingsTab === 'products' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('products')}>Products</button>
-                {user.role === 'owner' && <button className={`btn ${settingsTab === 'users' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('users')}>Staff Users</button>}
-                {user.role === 'owner' && <button className={`btn ${settingsTab === 'deleted-orders' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('deleted-orders')}>Deleted Orders</button>}
+                {(user.role === 'owner' || user.role === 'developer') && <button className={`btn ${settingsTab === 'users' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('users')}>Staff Users</button>}
+                {(user.role === 'owner' || user.role === 'developer') && <button className={`btn ${settingsTab === 'deleted-orders' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('deleted-orders')}>Deleted Orders</button>}
               </div>
 
-              {/* ── Products Sub-tab ── */}
               {settingsTab === 'products' && (
                 <div>
                   <div className="products-admin-header">
@@ -684,15 +642,14 @@ export default function AdminPanel() {
                           <span className="toggle-slider"/>
                         </label>
                         <button className="icon-btn edit" onClick={()=>openEdit(p)}>✏️</button>
-                        {user.role === 'owner' && <button className="icon-btn delete" onClick={()=>setConfirmId(p.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
+                        {(user.role === 'owner' || user.role === 'developer') && <button className="icon-btn delete" onClick={()=>setConfirmId(p.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* ── Users Sub-tab ── */}
-              {settingsTab === 'users' && user.role === 'owner' && (
+              {settingsTab === 'users' && (user.role === 'owner' || user.role === 'developer') && (
                 <div>
                   <div className="products-admin-header">
                     <h3>Staff Users</h3>
@@ -702,13 +659,13 @@ export default function AdminPanel() {
                     <table>
                       <thead><tr><th>Phone</th><th>Name</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
                       <tbody>
-                        {users.map(u => (
+                        {users.filter(u => user.role === 'developer' ? true : u.role !== 'developer').map(u => (
                           <tr key={u.id}>
                             <td>{u.phone}</td><td>{u.name}</td><td>{u.role}</td>
                             <td>{new Date(u.createdAt).toLocaleDateString()}</td>
                             <td>
                               <button className="icon-btn edit" onClick={()=>openEditUser(u)}>✏️</button>
-                              {u.role !== 'owner' && <button className="icon-btn delete" onClick={()=>setConfirmUserId(u.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
+                              {((u.role !== 'owner' && user.role === 'owner') || user.role === 'developer') && <button className="icon-btn delete" onClick={()=>setConfirmUserId(u.id)}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>}
                             </td>
                           </tr>
                         ))}
@@ -718,8 +675,7 @@ export default function AdminPanel() {
                 </div>
               )}
 
-              {/* ── Deleted Orders Sub-tab ── */}
-              {settingsTab === 'deleted-orders' && user.role === 'owner' && (
+              {settingsTab === 'deleted-orders' && (user.role === 'owner' || user.role === 'developer') && (
                 <div className="orders-wrap">
                   <div className="orders-header"><h3>Deleted Orders</h3></div>
                   <div className="table-wrap">
@@ -743,8 +699,6 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* ── Modals ── */}
-      {/* Product Modal */}
       {modalOpen && (
         <div className="admin-modal-backdrop open">
           <div className="admin-modal">
@@ -762,7 +716,6 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* User Modal */}
       {userModalOpen && (
         <div className="admin-modal-backdrop open">
           <div className="admin-modal">
@@ -771,7 +724,15 @@ export default function AdminPanel() {
               <div className="form-group"><label>Name</label><input className="form-input" value={ufName} onChange={e=>setUfName(e.target.value)} required/></div>
               <div className="form-group"><label>Phone Number</label><input type="tel" className="form-input" value={ufPhone} onChange={e=>setUfPhone(e.target.value)} required/></div>
               <div className="form-group"><label>Password (Optional)</label><input type="password" className="form-input" value={ufPassword} onChange={e=>setUfPassword(e.target.value)} placeholder={editingId ? 'Leave blank to keep unchanged' : ''}/></div>
-              <div className="form-group"><label>Role / Position</label><select className="form-input" value={ufRole} onChange={e=>setUfRole(e.target.value as AdminRole)}><option value="manager">Manager</option><option value="rider">Rider</option><option value="owner">Owner</option></select></div>
+              <div className="form-group">
+                <label>Role / Position</label>
+                <select className="form-input" value={ufRole} onChange={e=>setUfRole(e.target.value as AdminRole)}>
+                  <option value="manager">Manager</option>
+                  <option value="rider">Rider</option>
+                  <option value="owner">Owner</option>
+                  {user.role === 'developer' && <option value="developer">Developer</option>}
+                </select>
+              </div>
               <div className="admin-modal-actions">
                 <button type="submit" className="btn btn-accent">{editingId ? 'Save Changes' : 'Create User'}</button>
                 <button type="button" className="btn btn-ghost" onClick={()=>setUserModalOpen(false)}>Cancel</button>

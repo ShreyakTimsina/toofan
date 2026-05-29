@@ -44,7 +44,7 @@ export type Cart = Record<string, number>; // productId → quantity
 
 
 
-export type AdminRole = 'owner' | 'manager' | 'rider';
+export type AdminRole = 'owner' | 'manager' | 'rider' | 'developer';
 
 export interface AdminUser {
   id: string;
