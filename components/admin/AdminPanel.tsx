@@ -2,14 +2,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import type { Product, Order, OrderStatus, AdminUser, AdminRole } from '@/lib/types';
-import { CATEGORY_LABELS } from '@/lib/types';
+import type { Product, Order, OrderStatus, AdminUser, AdminRole, Settings, CategoryItem } from '@/lib/types';
 import {
   fetchProducts, fetchOrders, updateOrderStatusAPI,
   saveProductAPI, deleteProductAPI, reorderProductsAPI,
   softDeleteOrderAPI, permanentlyDeleteOrderAPI,
   sendOtpAPI, verifyOtpAPI, fetchUsersAPI, saveUserAPI, deleteUserAPI,
-  isReturningCustomer
+  isReturningCustomer, fetchSettingsAPI, saveSettingsAPI
 } from '@/lib/data';
 import AnalyticsTab from './AnalyticsTab';
 
@@ -23,7 +22,8 @@ export default function AdminPanel() {
   const [authError, setAuthError]   = useState('');
   
   const [tab, setTab]               = useState<Tab>('orders');
-  const [settingsTab, setSettingsTab] = useState<'products' | 'users' | 'deleted-orders'>('products');
+  const [settingsTab, setSettingsTab] = useState<'general' | 'products' | 'users' | 'deleted-orders'>('general');
+  const [settings, setSettings]     = useState<Settings | null>(null);
   const [orders, setOrders]         = useState<Order[]>([]);
   const [products, setProducts]     = useState<Product[]>([]);
   const [users, setUsers]           = useState<AdminUser[]>([]);
@@ -98,6 +98,30 @@ export default function AdminPanel() {
     }
   };
 
+  const load = async (role: AdminRole) => {
+    setLoading(true);
+    try {
+      const ords = await fetchOrders();
+      setOrders(ords);
+      
+      if (role === 'owner' || role === 'manager' || role === 'developer') {
+        const prods = await fetchProducts();
+        setProducts(prods.sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
+        const sets = await fetchSettingsAPI();
+        setSettings(sets);
+        if (role === 'owner' || role === 'developer') calcDashboard(ords, prods);
+      }
+      
+      if (role === 'owner' || role === 'developer') {
+        const u = await fetchUsersAPI();
+        setUsers(u);
+      }
+    } catch (err) {
+      addToast('Failed to load data');
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedUserStr = localStorage.getItem('toofan_admin_user');
@@ -111,6 +135,7 @@ export default function AdminPanel() {
           } else {
             // Refresh timer
             localStorage.setItem('toofan_admin_user', JSON.stringify({ ...userData, lastActive: Date.now() }));
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             setUser(userData);
             load(userData.role);
           }
@@ -163,28 +188,6 @@ export default function AdminPanel() {
     setTheme(next);
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('toofan_theme', next);
-  };
-
-  const load = async (role: AdminRole) => {
-    setLoading(true);
-    try {
-      const ords = await fetchOrders();
-      setOrders(ords);
-      
-      if (role === 'owner' || role === 'manager' || role === 'developer') {
-        const prods = await fetchProducts();
-        setProducts(prods.sort((a,b) => (a.displayOrder||99)-(b.displayOrder||99)));
-        if (role === 'owner' || role === 'developer') calcDashboard(ords, prods);
-      }
-      
-      if (role === 'owner' || role === 'developer') {
-        const u = await fetchUsersAPI();
-        setUsers(u);
-      }
-    } catch (err) {
-      addToast('Failed to load data');
-    }
-    setLoading(false);
   };
 
   const calcDashboard = (ords: Order[], prods: Product[]) => {
@@ -305,7 +308,36 @@ export default function AdminPanel() {
     }
   };
 
-  const openAdd  = () => { setEditingId(null); setPfName(''); setPfCat('drinks'); setPfPrice(''); setPfDesc(''); setPfImage(''); setModalOpen(true); };
+  const saveGeneralSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+    try {
+      const saved = await saveSettingsAPI(settings);
+      setSettings(saved);
+      addToast('Settings saved!');
+    } catch {
+      addToast('Failed to save settings.');
+    }
+  };
+
+  const addCategory = () => {
+    if (!settings) return;
+    const newCat = { id: `cat-${Date.now()}`, name: 'New Category', icon: '📦' };
+    setSettings({ ...settings, categories: [...settings.categories, newCat] });
+  };
+  const updateCategory = (idx: number, field: keyof CategoryItem, val: string) => {
+    if (!settings) return;
+    const newCats = [...settings.categories];
+    newCats[idx] = { ...newCats[idx], [field]: val };
+    setSettings({ ...settings, categories: newCats });
+  };
+  const deleteCategory = (idx: number) => {
+    if (!settings) return;
+    const newCats = settings.categories.filter((_, i) => i !== idx);
+    setSettings({ ...settings, categories: newCats });
+  };
+
+  const openAdd  = () => { setEditingId(null); setPfName(''); setPfCat(settings?.categories[0]?.id || 'drinks'); setPfPrice(''); setPfDesc(''); setPfImage(''); setModalOpen(true); };
   const openEdit = (p: Product) => { setEditingId(p.id); setPfName(p.name); setPfCat(p.category); setPfPrice(String(p.price)); setPfDesc(p.description); setPfImage(p.image); setModalOpen(true); };
 
   const saveProd = async (e: React.FormEvent) => {
@@ -498,12 +530,12 @@ export default function AdminPanel() {
           {!loading && tab === 'dashboard' && (user.role === 'owner' || user.role === 'developer') && (
             <div>
               <div className="stat-grid">
-                <div className="stat-card"><div className="stat-label">Today's Orders</div><div className="stat-value">{stats.today}</div></div>
+                <div className="stat-card"><div className="stat-label">Today&apos;s Orders</div><div className="stat-value">{stats.today}</div></div>
                 <div className="stat-card"><div className="stat-label">Pending Orders</div><div className="stat-value">{stats.pending}</div></div>
-                <div className="stat-card"><div className="stat-label">Today's Revenue</div><div className="stat-value" style={{color:'var(--clr-accent)'}}>Rs.{stats.revenue.toLocaleString()}</div></div>
+                <div className="stat-card"><div className="stat-label">Today&apos;s Revenue</div><div className="stat-value" style={{color:'var(--clr-accent)'}}>Rs.{stats.revenue.toLocaleString()}</div></div>
               </div>
               <div className="orders-wrap" style={{padding:'24px', marginTop:'24px'}}>
-                <h3 style={{fontSize:'15px',marginBottom:'16px'}}>🏆 Today's Top Products</h3>
+                <h3 style={{fontSize:'15px',marginBottom:'16px'}}>🏆 Today&apos;s Top Products</h3>
                 {topProds.length === 0 ? (
                   <p style={{color:'var(--clr-text-3)', fontSize:'13px'}}>No orders today yet.</p>
                 ) : (
@@ -619,10 +651,42 @@ export default function AdminPanel() {
           {!loading && tab === 'settings' && ['owner', 'developer', 'manager'].includes(user.role) && (
             <div>
               <div className="settings-nav" style={{display:'flex',gap:'10px',marginBottom:'20px',overflowX:'auto',paddingBottom:'5px'}}>
+                <button className={`btn ${settingsTab === 'general' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('general')}>General</button>
                 <button className={`btn ${settingsTab === 'products' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('products')}>Products</button>
                 {(user.role === 'owner' || user.role === 'developer') && <button className={`btn ${settingsTab === 'users' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('users')}>Staff Users</button>}
                 {(user.role === 'owner' || user.role === 'developer') && <button className={`btn ${settingsTab === 'deleted-orders' ? 'btn-accent' : 'btn-ghost'}`} onClick={()=>setSettingsTab('deleted-orders')}>Deleted Orders</button>}
               </div>
+
+              {settingsTab === 'general' && settings && (
+                <div className="orders-wrap" style={{padding:'24px'}}>
+                  <h3 style={{marginBottom:'20px'}}>Store Settings</h3>
+                  <form onSubmit={saveGeneralSettings} style={{maxWidth:'600px'}}>
+                    <div className="form-group">
+                      <label>WhatsApp Number (Floating Menu)</label>
+                      <input type="text" className="form-input" value={settings.whatsappNumber || ''} onChange={e=>setSettings({...settings, whatsappNumber: e.target.value})} placeholder="e.g. 1234567890"/>
+                    </div>
+                    <div className="form-group">
+                      <label>Phone Number (Floating Menu)</label>
+                      <input type="text" className="form-input" value={settings.phoneNumber || ''} onChange={e=>setSettings({...settings, phoneNumber: e.target.value})} placeholder="e.g. 1234567890"/>
+                    </div>
+                    
+                    <h4 style={{marginTop:'32px', marginBottom:'16px'}}>Product Categories</h4>
+                    <div style={{display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px'}}>
+                      {settings.categories.map((cat, i) => (
+                        <div key={i} style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                          <input type="text" className="form-input" value={cat.id} onChange={e=>updateCategory(i, 'id', e.target.value)} placeholder="ID (e.g. drinks)" style={{flex:1}}/>
+                          <input type="text" className="form-input" value={cat.name} onChange={e=>updateCategory(i, 'name', e.target.value)} placeholder="Name (e.g. Drinks)" style={{flex:2}}/>
+                          <input type="text" className="form-input" value={cat.icon} onChange={e=>updateCategory(i, 'icon', e.target.value)} placeholder="Icon" style={{width:'80px'}}/>
+                          <button type="button" className="icon-btn delete" onClick={()=>deleteCategory(i)} style={{minWidth:'36px', height:'36px'}}>×</button>
+                        </div>
+                      ))}
+                      <button type="button" className="btn btn-ghost" onClick={addCategory} style={{alignSelf:'flex-start'}}>+ Add Category</button>
+                    </div>
+
+                    <button type="submit" className="btn btn-accent">Save Settings</button>
+                  </form>
+                </div>
+              )}
 
               {settingsTab === 'products' && (
                 <div>
@@ -703,7 +767,12 @@ export default function AdminPanel() {
             <h3>{editingId ? 'Edit Product' : 'Add Product'}</h3>
             <form onSubmit={saveProd}>
               <div className="form-group"><label>Name</label><input className="form-input" value={pfName} onChange={e=>setPfName(e.target.value)} required/></div>
-              <div className="form-group"><label>Category</label><select className="form-input" value={pfCat} onChange={e=>setPfCat(e.target.value as any)}><option value="drinks">Drinks</option><option value="cigarettes">Cigarettes</option><option value="snacks">Snacks</option></select></div>
+              <div className="form-group">
+                <label>Category</label>
+                <select className="form-input" value={pfCat} onChange={e=>setPfCat(e.target.value)}>
+                  {settings?.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
               <div className="form-group"><label>Price</label><input type="number" className="form-input" value={pfPrice} onChange={e=>setPfPrice(e.target.value)} required/></div>
               <div className="admin-modal-actions">
                 <button type="submit" className="btn btn-accent">Save</button>

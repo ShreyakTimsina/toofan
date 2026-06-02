@@ -17,6 +17,11 @@ export const SEED_PRODUCTS: Product[] = [
   { id: 'p013', name: 'Wai Wai Noodles',    category: 'snacks',     description: 'Crunchy dry noodles or quick soup — iconic Nepali snack.',             price: 30,   image: '/images/waiwai.png',     orderCount: 450, active: true, displayOrder: 13 },
   { id: 'p014', name: 'Kurkure Masala',      category: 'snacks',     description: 'Crispy corn puffs with bold masala heat.',                             price: 60,   image: '/images/kurkure.png',    orderCount: 310, active: true, displayOrder: 14 },
   { id: 'p015', name: 'Chips Combo (2pcs)',  category: 'snacks',     description: 'Two packs of assorted potato chips. Great for groups.',                price: 100,  image: '/images/chips.png',      orderCount: 175, active: true, displayOrder: 15 },
+  { id: 'p016', name: 'Hokkah Coil',         category: 'hokkah',     description: 'Premium quick-light hokkah charcoal coil.',                            price: 250,  image: '/images/placeholder.png', orderCount: 0,   active: true, displayOrder: 16 },
+  { id: 'p017', name: 'Hokkah Flavour',      category: 'hokkah',     description: 'Double Apple premium hokkah flavour pack.',                            price: 450,  image: '/images/placeholder.png', orderCount: 0,   active: true, displayOrder: 17 },
+  { id: 'p018', name: 'Hokkah Mint Flavour', category: 'hokkah',     description: 'Refreshing mint premium hokkah flavour pack.',                         price: 450,  image: '/images/placeholder.png', orderCount: 0,   active: true, displayOrder: 18 },
+  { id: 'p019', name: 'Hokkah Foil',         category: 'hokkah',     description: 'Pre-cut aluminium foil for hokkah bowls.',                             price: 150,  image: '/images/placeholder.png', orderCount: 0,   active: true, displayOrder: 19 },
+  { id: 'p020', name: 'Hokkah Mouthpiece',   category: 'hokkah',     description: 'Disposable plastic mouthpieces (pack of 10).',                         price: 100,  image: '/images/placeholder.png', orderCount: 0,   active: true, displayOrder: 20 },
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,6 +31,14 @@ export const DEFAULT_SETTINGS: Settings = {
   storeName: 'Toofan',
   storeTagline: 'Your favourite drinks & more — delivered fast.',
   currency: 'Rs.',
+  whatsappNumber: '1234567890',
+  phoneNumber: '1234567890',
+  categories: [
+    { id: 'drinks', name: 'Drinks', icon: '🍺' },
+    { id: 'cigarettes', name: 'Cigarettes', icon: '🚬' },
+    { id: 'snacks', name: 'Snacks', icon: '🍿' },
+    { id: 'hokkah', name: 'Hokkah', icon: '💨' }
+  ]
 };
 
 const KEYS = { SETTINGS: 'toofan_settings', CART: 'toofan_cart' } as const;
@@ -38,12 +51,27 @@ export function getCart(): Cart {
 export function saveCart(cart: Cart): void { localStorage.setItem(KEYS.CART, JSON.stringify(cart)); }
 export function clearCart(): void { localStorage.removeItem(KEYS.CART); }
 
-// ─── Settings (client-side) ───────────────────────────────
-export function getSettings(): Settings {
-  try { const raw = localStorage.getItem(KEYS.SETTINGS); return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS }; }
-  catch { return { ...DEFAULT_SETTINGS }; }
+// ─── Settings (API-backed) ───────────────────────────────
+export async function fetchSettingsAPI(): Promise<Settings> {
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) throw new Error('Failed to fetch settings');
+    const data = await res.json();
+    return { ...DEFAULT_SETTINGS, ...data };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
 }
-export function saveSettings(s: Settings): void { localStorage.setItem(KEYS.SETTINGS, JSON.stringify(s)); }
+
+export async function saveSettingsAPI(s: Partial<Settings>): Promise<Settings> {
+  const res = await fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(s),
+  });
+  if (!res.ok) throw new Error('Failed to save settings');
+  return res.json();
+}
 
 // ─── Legacy localStorage helpers (for admin auth, settings) ─
 export function isReturningCustomer(phone: string, orders: import('./types').Order[], excludeId?: string): boolean {

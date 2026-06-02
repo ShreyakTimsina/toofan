@@ -2,13 +2,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import Link from 'next/link';
 import Fuse from 'fuse.js';
-import type { Product, Cart, SortMode, Category, DeliveryCoords } from '@/lib/types';
-import { CATEGORY_LABELS } from '@/lib/types';
+import type { Product, Cart, SortMode, Category, DeliveryCoords, Settings } from '@/lib/types';
 import {
   getCart, saveCart, clearCart,
   fetchProducts, submitOrder, notifyAdminSMS,
-  generateId, getSettings,
+  generateId, fetchSettingsAPI,
 } from '@/lib/data';
 import FloatingContact from './FloatingContact';
 
@@ -22,15 +22,12 @@ const MapAddressPicker = dynamic(
   )}
 );
 
-const CATEGORY_ICONS = {
-  drinks: '🍺',
-  cigarettes: '🚬',
-  snacks: '🍿',
-};
+// Removed CATEGORY_ICONS since we use dynamic settings
 
 export default function Storefront() {
   const [products, setProducts]         = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [settings, setSettings]         = useState<Settings | null>(null);
   const [cart, setCart]                 = useState<Cart>({});
   const [category, setCategory]         = useState<Category | 'all'>('all');
   const [sortMode, setSortMode]         = useState<SortMode>('default');
@@ -62,7 +59,12 @@ export default function Storefront() {
 
     // Cart
     setCart(getCart());
-    setSortMode(getSettings().defaultSort);
+
+    // Fetch settings and set default sort
+    fetchSettingsAPI().then(sets => {
+      setSettings(sets);
+      setSortMode(sets.defaultSort || 'default');
+    }).catch(err => console.error('[Storefront] fetchSettings error:', err));
 
     // Products from MongoDB
     fetchProducts()
@@ -148,7 +150,7 @@ export default function Storefront() {
     const p = products.find(x => x.id === id);
     return s + (p ? p.price*q : 0);
   }, 0);
-  const currency = getSettings().currency;
+  const currency = settings?.currency || 'Rs.';
 
   /* ── Order Submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,10 +214,9 @@ export default function Storefront() {
     <>
       {/* ── HEADER ── */}
       <header className="site-header" role="banner">
-        <a href="/" className="header-logo" aria-label="Toofan — Home">
-          <div className="logo-mark" aria-hidden="true">🌪</div>
-          <span>Toof<span className="logo-accent">an</span></span>
-        </a>
+        <Link href="/" className="header-logo" aria-label="Toofan — Home" style={{ display: 'flex', alignItems: 'center' }}>
+          <Image src={theme === 'dark' ? "/images/DarkModeLogo.png" : "/images/LightModeLogo.png"} alt="Toofan Logo" width={420} height={120} style={{ objectFit: 'contain' }} />
+        </Link>
         <nav className="header-nav" aria-label="Primary navigation" style={{display:'flex',alignItems:'center',gap:'10px'}}>
           <button
             className="theme-toggle"
@@ -270,10 +271,14 @@ export default function Storefront() {
             <input id="search-input" type="search" className="search-input" placeholder="Search drinks, snacks…" value={query} onChange={e => setQuery(e.target.value)} autoComplete="off"/>
           </div>
           <div className="filter-chips" role="group" aria-label="Filter by category">
-            {(['all', 'drinks', 'cigarettes', 'snacks'] as const).map(cat => (
-              <button key={cat} className={`chip${category === cat ? ' active' : ''}`}
-                onClick={() => setCategory(cat)} aria-pressed={category === cat}>
-                {cat === 'all' ? <span className="chip-text-only">All</span> : cat === 'drinks' ? <><span className="chip-icon">🍺</span><span className="chip-text"> Drinks</span></> : cat === 'cigarettes' ? <><span className="chip-icon">🚬</span><span className="chip-text"> Cigarettes</span></> : <><span className="chip-icon">🍿</span><span className="chip-text"> Snacks</span></>}
+            <button className={`chip${category === 'all' ? ' active' : ''}`}
+              onClick={() => setCategory('all')} aria-pressed={category === 'all'}>
+              <span className="chip-text-only">All</span>
+            </button>
+            {settings?.categories.map(cat => (
+              <button key={cat.id} className={`chip${category === cat.id ? ' active' : ''}`}
+                onClick={() => setCategory(cat.id)} aria-pressed={category === cat.id}>
+                <span className="chip-icon">{cat.icon}</span><span className="chip-text"> {cat.name}</span>
               </button>
             ))}
           </div>
@@ -300,7 +305,7 @@ export default function Storefront() {
                   <div className="card-img-wrap">
                     <Image 
                       src={product.image} 
-                      alt={`${product.name} — ${CATEGORY_LABELS[product.category]} from Toofan`} 
+                      alt={`${product.name} from Toofan`} 
                       fill 
                       sizes="(max-width: 540px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       style={{objectFit:'contain',padding:'16px'}} 
@@ -309,7 +314,7 @@ export default function Storefront() {
                       blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mO88R8AArcB13X5/6kAAAAASUVORK5CYII="
                       onError={() => {}}
                     />
-                    <span className={`badge badge--${product.category} card-category-badge`} title={CATEGORY_LABELS[product.category]} aria-label={CATEGORY_LABELS[product.category]}>{CATEGORY_ICONS[product.category]}</span>
+                    <span className={`badge badge--${product.category} card-category-badge`} title={settings?.categories.find(c => c.id === product.category)?.name} aria-label={settings?.categories.find(c => c.id === product.category)?.name}>{settings?.categories.find(c => c.id === product.category)?.icon || '📦'}</span>
                   </div>
                   <div className="card-body">
                     <h2 className="card-name">{product.name}</h2>
@@ -384,7 +389,9 @@ export default function Storefront() {
 
       {/* ── FOOTER ── */}
       <footer className="site-footer" role="contentinfo">
-        <div className="footer-logo">Toof<span className="logo-accent">an</span></div>
+        <div className="footer-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+          <Image src={theme === 'dark' ? "/images/DarkModeLogo.png" : "/images/LightModeLogo.png"} alt="Toofan Logo" width={800} height={240} style={{ objectFit: 'contain' }} />
+        </div>
         <p className="footer-tagline">Your favourite drinks &amp; more — delivered fast.</p>
         <nav className="footer-links" aria-label="Footer links">
           <a href="#products">Products</a>
@@ -559,7 +566,7 @@ export default function Storefront() {
         </div>
       </div>
       
-      <FloatingContact deferredPrompt={deferredPrompt} onInstall={handleInstallClick} />
+      <FloatingContact deferredPrompt={deferredPrompt} onInstall={handleInstallClick} whatsappNumber={settings?.whatsappNumber} phoneNumber={settings?.phoneNumber} />
     </>
   );
 }

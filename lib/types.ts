@@ -1,6 +1,12 @@
-export type Category = 'drinks' | 'cigarettes' | 'snacks';
+export type Category = string;
 export type SortMode = 'default' | 'popularity' | 'price-asc' | 'price-desc';
 export type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'cancelled';
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  icon: string;
+}
 
 export interface Product {
   id: string;
@@ -62,10 +68,7 @@ export interface Settings {
   storeName: string;
   storeTagline: string;
   currency: string;
+  whatsappNumber?: string;
+  phoneNumber?: string;
+  categories: CategoryItem[];
 }
-
-export const CATEGORY_LABELS: Record<Category, string> = {
-  drinks: 'Drinks',
-  cigarettes: 'Cigarettes',
-  snacks: 'Snacks',
-};
